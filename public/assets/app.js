@@ -12,7 +12,7 @@ const CANDIDATE_CONTACTS = {
 const CHIPS = [
   "Kubernetes", "Argo CD", "GitOps", "Deckhouse",
   "Helm", "OpenTelemetry", "VictoriaMetrics", "GitLab CI", "Kaniko",
-  "Keycloak", "Vault", "FreeIPA", "Istio", "Capsule", "Tetragon",
+  "Keycloak", "Vault", "FreeIPA", "Qdrant", "PowerDNS", "Istio", "Capsule", "Tetragon",
   "Ansible", "AWX", "Yandex Cloud",
 ];
 

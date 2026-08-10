@@ -1150,7 +1150,64 @@ textarea:focus, input[type="url"]:focus {
 .footer a { color: var(--accent); }
 
 @media (max-width: 800px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+    align-items: stretch;
+    padding: 0.75rem 1rem 0.85rem;
+  }
+  .topbar.scrolled {
+    padding-inline: 1rem;
+  }
+  .brand {
+    min-width: 0;
+    gap: 0.5rem;
+  }
+  .brand-mark {
+    width: 2.1rem;
+    height: 2.1rem;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+  }
+  .brand-text {
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .nav {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  .nav a {
+    display: grid;
+    place-items: center;
+    text-align: center;
+    font-size: 0.84rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+  }
+  .nav a.active {
+    color: var(--text);
+    border-color: var(--line-strong);
+    background: rgba(94, 234, 212, 0.06);
+  }
+  .nav a.active::after {
+    display: none;
+  }
+  .nav-cta {
+    padding: 0.55rem 0.65rem;
+  }
+
   .match-grid, .score-card { grid-template-columns: 1fr; }
+  .hero {
+    padding: 1.25rem 1rem 0.75rem;
+  }
   .hero-layout {
     grid-template-columns: 1fr;
     justify-items: center;
@@ -1160,8 +1217,18 @@ textarea:focus, input[type="url"]:focus {
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
   }
-  .hero-actions,
+  .hero-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  .hero-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
   .stat-row {
     justify-content: center;
   }
@@ -1180,7 +1247,7 @@ textarea:focus, input[type="url"]:focus {
     margin-left: 0.75rem;
     margin-right: 0.75rem;
     padding: 1.1rem 1rem 1.35rem;
-    scroll-margin-top: 4.75rem;
+    scroll-margin-top: 6.5rem;
   }
   .panel-head {
     flex-wrap: wrap;

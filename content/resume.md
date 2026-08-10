@@ -27,10 +27,12 @@
 - **Helm**: платформенные и продуктовые чарты, values по окружениям, canary (Istio VS/DR), **VPA**
 - GitOps: Argo CD (AppProjects, bootstrap Applications)
 - Observability: **OpenTelemetry**, **VictoriaMetrics** (vmagent/vmalert/vmauth), **VictoriaLogs**, Vector, Grafana, Alertmanager
-- Networking / TLS: Istio, **MetalLB**, **cert-manager**, ExternalDNS
+- Networking / TLS: Istio, **MetalLB**, **cert-manager**, ExternalDNS, **PowerDNS**
 - Storage: **Linstor**, Local, S3
 - Canary deploy: Istio в Kubernetes, nginx+lua на серверах
 - Platform-сервисы для команд: **Keycloak** (SSO/RBAC), **Vault** (коммунальный secrets + CSI в поды), Nexus, AWX, Sentry
+- DNS: настройка и администрирование **PowerDNS** (зоны, записи, интеграция с ExternalDNS)
+- Векторная БД: настройка и администрирование **Qdrant** (коллекции, персистентность, бэкапы, доступ)
 - Секреты в workloads: Deckhouse **Secrets Store CSI** / External Secrets → Vault KV
 - **RBAC** end-to-end: Keycloak / FreeIPA / LDAP / OIDC → Kubernetes, GitLab, Vault, AWX
 - Опыт написания оператора для Kubernetes
@@ -68,6 +70,8 @@
 - Единые **GitLab CI Components** для команд: prepare → test → Kaniko → SCA → deploy в Argo CD.
 - Наставничество и руководство командой инженеров: обучение Kubernetes, CI/CD, IaC.
 - Развитие и сопровождение коммунальных сервисов: Kubernetes, Vault, Nexus, AWX, Keycloak, GitLab, Sentry.
+- Настройка и администрирование **Qdrant** (векторная БД): развёртывание, коллекции, персистентность, бэкапы и эксплуатация как платформенного сервиса.
+- Настройка и администрирование **PowerDNS**: зоны и записи, интеграция с Kubernetes через ExternalDNS.
 - Observability-контур: OpenTelemetry, VictoriaMetrics, VictoriaLogs, Vector, Grafana, Alertmanager.
 - IaC на Ansible (в т.ч. HA PostgreSQL на Patroni), CI/CD на GitLab, GitOps на Argo CD.
 - **Helm**-чарты для коммунальных и продуктовых сервисов (canary, VPA); GitOps на Argo CD.
@@ -106,6 +110,7 @@
 
 - Выстроил и ввёл в эксплуатацию **полную платформу DevOps**: Kubernetes, GitOps (Argo CD), **GitLab CI Components** + Kaniko, IaC, **Vault** (+ CSI в поды), **Keycloak/FreeIPA**, observability (OTel / VictoriaMetrics / VictoriaLogs), IDP — единый контур для продуктовых команд.
 - Внедряю **GitOps под ключ**: bootstrap кластера (**Deckhouse** или ванильный Kubernetes), Argo CD, **Helm**-шаблоны приложений (canary, VPA), политики и изменения через merge request.
+- Эксплуатирую **Qdrant** как векторное хранилище; тестировал **RAG** над корпоративной wiki (чанкинг документации → эмбеддинги → semantic retrieval, проверка релевантности ответов с цитированием источников).
 - Опыт разработки на Django и интеграции REST API; написание оператора для Kubernetes.
 - Формирование и закрепление единого стандарта разработки и CI/CD: onboarding команд на платформу, документация, self-service через IDP (git flow, релиз-манифест).
 - Сильный ops-фундамент: ЦОД и инфраструктура «с нуля», HA (в т.ч. Patroni), мониторинг, безопасность и эксплуатация в регулируемых средах.
@@ -117,7 +122,7 @@
 `Kubernetes` `Deckhouse` `Helm` `Istio` `Cilium` `Capsule` `Tetragon` `Argo CD`  
 `GitLab CI` `Kaniko` `OpenTelemetry` `VictoriaMetrics` `VictoriaLogs` `Vector`  
 `Ansible` `AWX` `Vault` `Keycloak` `FreeIPA` `Nexus` `Patroni` `Sentry`  
-`MetalLB` `cert-manager` `Linstor` `External Secrets` `Yandex Cloud`  
+`Qdrant` `PowerDNS` `MetalLB` `cert-manager` `Linstor` `External Secrets` `Yandex Cloud`  
 `Docker` `Podman` `Linux` `Python` `Django` `Bash`
 
 ---
