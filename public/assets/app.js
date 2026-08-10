@@ -475,26 +475,46 @@ function animateScoreRing(el, target) {
   requestAnimationFrame(tick);
 }
 
+function revealEl(el) {
+  el?.classList.add("in");
+}
+
 function setupScrollReveal() {
   const items = $all(".reveal");
   if (prefersReducedMotion()) {
-    items.forEach((el) => el.classList.add("in"));
+    items.forEach((el) => revealEl(el));
     return;
   }
   const io = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
-          entry.target.classList.add("in");
+          revealEl(entry.target);
           io.unobserve(entry.target);
         }
       }
     },
-    { rootMargin: "0px 0px -8% 0px", threshold: 0.12 }
+    { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
   );
   items.forEach((el) => {
     if (!el.classList.contains("in")) io.observe(el);
   });
+
+  const revealHashTarget = () => {
+    const id = location.hash.replace(/^#/, "");
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    revealEl(el);
+    if (id === "match") {
+      // Sticky header + iOS zoom made the vacancy textarea easy to miss
+      requestAnimationFrame(() => {
+        $("#vacancy-text")?.scrollIntoView({ block: "center", behavior: "smooth" });
+      });
+    }
+  };
+  window.addEventListener("hashchange", revealHashTarget);
+  revealHashTarget();
 }
 
 function setupTopbar() {

@@ -143,12 +143,14 @@ code, .mono { font-family: var(--mono); }
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 10px;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 11px;
   background: linear-gradient(135deg, rgba(94, 234, 212, 0.2), rgba(56, 189, 248, 0.15));
   border: 1px solid var(--line-strong);
   color: var(--accent);
+  font-size: 1.35rem;
+  line-height: 1;
   animation: helm-spin 18s linear infinite;
 }
 
@@ -724,6 +726,7 @@ code, .mono { font-family: var(--mono); }
   box-shadow: var(--shadow);
   backdrop-filter: blur(10px);
   transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  scroll-margin-top: 5.5rem;
 }
 
 .panel:hover {
@@ -980,16 +983,19 @@ code, .mono { font-family: var(--mono); }
 
 textarea, input[type="url"] {
   width: 100%;
+  max-width: 100%;
   background: #080d16;
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--text);
   font: inherit;
   font-family: var(--mono);
-  font-size: 0.92rem;
+  /* 16px: iOS otherwise zooms inputs and hides the vacancy field */
+  font-size: 16px;
   padding: 0.9rem 1rem;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-text-size-adjust: 100%;
 }
 textarea:focus, input[type="url"]:focus {
   border-color: var(--line-strong);
@@ -1169,6 +1175,25 @@ textarea:focus, input[type="url"]:focus {
   .pipe-stage {
     font-size: 0.58rem;
     min-width: 3.6rem;
+  }
+  .panel {
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
+    padding: 1.1rem 1rem 1.35rem;
+    scroll-margin-top: 4.75rem;
+  }
+  .panel-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .match-panel .lead {
+    font-size: 0.95rem;
+  }
+  .tab-panels {
+    min-height: 12rem;
+  }
+  #vacancy-text {
+    min-height: 11rem;
   }
 }
 
