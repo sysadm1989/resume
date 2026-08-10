@@ -1,0 +1,17 @@
+[Unit]
+Description=Resume site + OpenCode vacancy match
+After=network.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__WORKDIR__
+EnvironmentFile=__WORKDIR__/.env
+ExecStart=__NODE__ __WORKDIR__/server.mjs
+Restart=on-failure
+RestartSec=3
+# OpenCode часто в ~/.opencode/bin
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:%h/.opencode/bin
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+services:
+  resume:
+    build: .
+    image: resume-match:latest
+    container_name: resume-match
+    ports:
+      - "${PORT:-8787}:8787"
+    environment:
+      PORT: "8787"
+      HOST: "0.0.0.0"
+      OPENCODE_BIN: opencode
+      OPENCODE_MODEL: ${OPENCODE_MODEL:-opencode/deepseek-v4-flash-free}
+      OPENCODE_TIMEOUT_MS: ${OPENCODE_TIMEOUT_MS:-180000}
+    volumes:
+      # Правите резюме на хосте без пересборки образа
+      - ./content:/app/content:ro
+      - ./prompts:/app/prompts:ro
+      # Креды/конфиг OpenCode с хоста (обязательно для match)
+      - ${OPENCODE_CONFIG_DIR:-${HOME}/.config/opencode}:/root/.config/opencode:ro
+    restart: unless-stopped

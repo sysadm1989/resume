@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Tech Lead — DevOps / Platform Engineer — Kubernetes, GitOps, CI/CD" />
+  <title>Алексей Назаров — Tech Lead DevOps</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-2" aria-hidden="true"></div>
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <canvas id="mesh-canvas" class="mesh-canvas" aria-hidden="true"></canvas>
+
+  <header class="topbar" id="topbar">
+    <div class="brand">
+      <span class="brand-mark">⎈</span>
+      <span class="brand-text">nazarov<span class="muted">.devops</span></span>
+    </div>
+    <nav class="nav">
+      <a href="#resume" data-nav="resume">Резюме</a>
+      <a href="#match" class="nav-cta" data-nav="match">Match вакансии</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero reveal in">
+      <div class="hero-layout">
+        <figure class="photo-frame hero-photo" id="hero-photo" hidden>
+          <span class="photo-ring" aria-hidden="true"></span>
+          <img id="hero-photo-img" alt="Фото: Алексей Назаров" width="220" height="220" />
+        </figure>
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="pulse"></span> <span id="eyebrow-rotator">Tech Lead DevOps · Kubernetes · GitOps</span></p>
+          <h1 id="hero-name" class="hero-title">Алексей Назаров</h1>
+          <p class="hero-sub" id="hero-role">DevOps / Platform Engineer — кластеры, CI/CD, IDP</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#match">
+              <span>Проверить вакансию</span>
+              <span class="btn-shine" aria-hidden="true"></span>
+            </a>
+            <a class="btn btn-ghost" href="/api/resume.md" download="resume.md">Скачать MD</a>
+            <button class="btn btn-ghost" type="button" id="btn-print">Печать / PDF</button>
+          </div>
+          <div class="stat-row" id="skill-chips"></div>
+        </div>
+      </div>
+
+      <div class="platform-viz" aria-hidden="true">
+        <div class="viz-head">
+          <span class="viz-label"><span class="pulse pulse-sm"></span> cluster · namespace <code id="viz-ns">payment-dev</code></span>
+          <span class="viz-status" id="viz-status">reconciling · 2/2</span>
+        </div>
+        <div class="hero-mesh-wrap">
+          <canvas id="hero-mesh-canvas" class="hero-mesh-canvas"></canvas>
+        </div>
+        <div class="pipeline-rail">
+          <div class="pipeline-track" id="pipeline-track">
+            <span class="pipe-stage" data-stage="0" data-job="prepare">
+              <span class="pipe-icon pipe-icon-arc"></span>prepare
+            </span>
+            <span class="pipe-connector"></span>
+            <span class="pipe-stage" data-stage="1" data-job="kaniko">
+              <span class="pipe-icon pipe-icon-dot"></span>kaniko
+            </span>
+            <span class="pipe-connector"></span>
+            <span class="pipe-stage" data-stage="2" data-job="sca">
+              <span class="pipe-icon pipe-icon-dot"></span>sca
+            </span>
+            <span class="pipe-connector"></span>
+            <span class="pipe-stage" data-stage="3" data-job="deploy">
+              <span class="pipe-icon pipe-icon-dot"></span>deploy
+            </span>
+            <span class="pipe-connector"></span>
+            <span class="pipe-stage" data-stage="4" data-job="rollout">
+              <span class="pipe-icon pipe-icon-dual"></span>rollout
+            </span>
+            <span class="pipe-runner"></span>
+          </div>
+        </div>
+        <div class="log-ticker" id="log-ticker">
+          <span class="log-line">argocd app sync platform-api-payment-dev · Healthy · Synced</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="resume" class="panel resume-panel reveal">
+      <div class="panel-head">
+        <h2>Резюме</h2>
+        <span class="badge">source: <code>content/resume.md</code></span>
+      </div>
+      <article id="resume-content" class="markdown-body">
+        <p class="loading">Загрузка resume.md…</p>
+      </article>
+    </section>
+
+    <section id="match" class="panel match-panel reveal">
+      <div class="panel-head">
+        <h2>Соответствие вакансии</h2>
+        <span class="badge badge-accent"><span class="badge-dot"></span> OpenCode</span>
+      </div>
+      <p class="lead">
+        Вставьте текст вакансии, ссылку или PDF — сравнение с резюме через OpenCode.
+        Удобно рекрутеру и hiring-менеджеру.
+      </p>
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="text" type="button">Текст</button>
+        <button class="tab" data-tab="url" type="button">Ссылка</button>
+        <button class="tab" data-tab="pdf" type="button">PDF</button>
+      </div>
+
+      <div class="tab-panels">
+        <div class="tab-panel active" data-panel="text">
+          <label class="field-label" for="vacancy-text">Текст вакансии</label>
+          <textarea id="vacancy-text" rows="12" placeholder="Вставьте описание вакансии Senior DevOps / Kubernetes…"></textarea>
+        </div>
+        <div class="tab-panel" data-panel="url">
+          <label class="field-label" for="vacancy-url">URL вакансии</label>
+          <input id="vacancy-url" type="url" placeholder="https://hh.ru/vacancy/…" />
+          <p class="hint">Сервер скачает страницу и извлечёт текст (лучшие результаты на страницах без жёсткой anti-bot защиты).</p>
+        </div>
+        <div class="tab-panel" data-panel="pdf">
+          <label class="field-label" for="vacancy-pdf">PDF файл</label>
+          <div class="dropzone" id="pdf-dropzone">
+            <input id="vacancy-pdf" type="file" accept="application/pdf,.pdf" />
+            <p class="dropzone-label">Перетащите PDF сюда или выберите файл</p>
+            <p class="dropzone-file muted" id="pdf-file-name">файл не выбран</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="match-actions">
+        <button class="btn btn-primary" type="button" id="btn-match">
+          <span class="btn-label">Сравнить с резюме</span>
+          <span class="btn-spinner" hidden></span>
+          <span class="btn-shine" aria-hidden="true"></span>
+        </button>
+        <p class="hint" id="match-status"></p>
+      </div>
+
+      <div id="match-result" class="match-result" hidden></div>
+    </section>
+  </main>
+
+  <footer class="footer reveal">
+    <span>Резюме в Markdown · UI static HTML · match via OpenCode</span>
+    <a href="https://opencode.ai" target="_blank" rel="noopener">opencode.ai</a>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

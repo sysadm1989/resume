@@ -1,0 +1,18 @@
+# Пример reverse-proxy (опционально)
+server {
+  listen 80;
+  server_name resume.example.com;
+
+  client_max_body_size 10m;
+
+  location / {
+    proxy_pass http://127.0.0.1:8787;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # match может идти 1–3 минуты
+    proxy_read_timeout 300s;
+  }
+}
