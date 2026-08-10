@@ -1,8 +1,8 @@
 services:
   resume:
-    image: node:22-bookworm-slim
+    build: .
+    image: ${DOCKER_IMAGE:-sysadm1989/resume:latest}
     container_name: resume-match
-    working_dir: /app
     # Только localhost — снаружи nginx на хосте
     ports:
       - "127.0.0.1:${PORT:-8787}:8787"
@@ -12,23 +12,14 @@ services:
       PORT: "8787"
       HOST: "0.0.0.0"
       NODE_ENV: production
+    # Резюме/промпт можно править на хосте без пересборки образа
     volumes:
-      - .:/app
-      - resume_node_modules:/app/node_modules
-    command: ["bash", "scripts/docker-entrypoint.sh"]
+      - ./content:/app/content:ro
+      - ./prompts:/app/prompts:ro
     restart: unless-stopped
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-        ]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8787/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 40s
-
-volumes:
-  resume_node_modules:
+      start_period: 20s
