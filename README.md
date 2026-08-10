@@ -51,7 +51,6 @@ PUSH=0 ./scripts/docker-push.sh
 ```bash
 apt-get update -y
 apt-get install -y docker.io docker-compose-v2 git curl
-# Ubuntu 26: certbot-nginx из universe (setup-ssl.sh сам включит при необходимости)
 systemctl enable --now docker
 docker compose version
 ```
@@ -77,7 +76,7 @@ DOCKER_IMAGE=sysadm1989/resume:latest
 HF_TOKEN=hf_...          # https://huggingface.co/settings/tokens
                          # право: Make calls to the Inference Providers
 DOMAIN=alexnazarov.site
-LETSENCRYPT_EMAIL=sysadm1989@gmail.com
+LETSENCRYPT_EMAIL=alexnazarov89@yandex.ru
 ```
 
 ### 4. Запуск образа
@@ -95,7 +94,7 @@ curl -fsS http://127.0.0.1:8787/api/health | python3 -m json.tool
 ### 5. HTTPS
 
 ```bash
-DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=sysadm1989@gmail.com ./scripts/setup-ssl.sh
+DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=alexnazarov89@yandex.ru ./scripts/setup-ssl.sh
 curl -fsS https://alexnazarov.site/api/health | python3 -m json.tool
 ```
 
