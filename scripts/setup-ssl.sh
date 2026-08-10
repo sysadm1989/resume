@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# Ставит nginx + Let's Encrypt (webroot, без плагина nginx — он часто ломает challenge).
+# Ставит nginx + Let's Encrypt.
 #
-#   DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=alexnazarov89@yandex.ru ./scripts/setup-ssl.sh
+# HTTP (если :80 доступен с интернета отовсюду):
+#   DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=… ./scripts/setup-ssl.sh
+#
+# DNS-01 (рекомендуется на Timeweb, если LE пишет connection на :80):
+#   DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=… ACME_MODE=dns ./scripts/setup-ssl.sh
+#   → скрипт покажет TXT-запись, добавьте в панели DNS Timeweb, нажмите Enter
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,13 +15,14 @@ EMAIL="${LETSENCRYPT_EMAIL:-${EMAIL:-}}"
 UPSTREAM="${UPSTREAM:-127.0.0.1:8787}"
 SITE_NAME="${SITE_NAME:-resume}"
 WEBROOT="${WEBROOT:-/var/www/certbot}"
+ACME_MODE="${ACME_MODE:-http}" # http|dns
 
 if [[ -z "$DOMAIN" ]]; then
-  echo "Usage: DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=alexnazarov89@yandex.ru $0"
+  echo "Usage: DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=you@mail [ACME_MODE=dns] $0"
   exit 1
 fi
 if [[ -z "$EMAIL" ]]; then
-  echo "Укажите LETSENCRYPT_EMAIL=... для Let's Encrypt"
+  echo "Укажите LETSENCRYPT_EMAIL=..."
   exit 1
 fi
 
@@ -61,40 +67,50 @@ EOF
 }
 
 echo "==> OS: $(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")"
+echo "==> ACME_MODE=${ACME_MODE}"
 echo "==> apt: nginx certbot"
 run apt-get update -y
 apt_install nginx certbot curl
-# плагин nginx не обязателен для webroot
-apt_install python3-certbot-nginx || true
 
-echo "==> webroot ACME: $WEBROOT"
+echo "==> nginx HTTP"
 run mkdir -p "$WEBROOT/.well-known/acme-challenge"
 run chown -R www-data:www-data "$WEBROOT" 2>/dev/null || true
 run chmod -R a+rX "$WEBROOT"
-
-echo "==> nginx HTTP (ACME + proxy)"
 install_site "$ROOT/deploy/nginx/resume.conf.template"
 run nginx -t
 run systemctl enable --now nginx
 run systemctl reload nginx
 
-echo "==> self-check ACME"
-echo "ok" | run tee "$WEBROOT/.well-known/acme-challenge/ping" >/dev/null
-curl -fsS "http://127.0.0.1/.well-known/acme-challenge/ping" >/dev/null
-curl -fsS "http://${DOMAIN}/.well-known/acme-challenge/ping" >/dev/null
-echo "    ACME path OK"
+if [[ "$ACME_MODE" == "dns" ]]; then
+  echo "==> certbot DNS-01 (ручной TXT в панели Timeweb)"
+  echo "    Когда certbot покажет _acme-challenge.${DOMAIN} → добавьте TXT и подождите 1–2 мин,"
+  echo "    проверьте: dig +short TXT _acme-challenge.${DOMAIN} @ns1.timeweb.ru"
+  echo
+  run certbot certonly \
+    --manual \
+    --preferred-challenges dns \
+    --manual-public-ip-logging-ok \
+    -d "$DOMAIN" \
+    --email "$EMAIL" \
+    --agree-tos \
+    --keep-until-expiring
+else
+  echo "==> self-check ACME (локально)"
+  echo "ok" | run tee "$WEBROOT/.well-known/acme-challenge/ping" >/dev/null
+  curl -fsS "http://127.0.0.1/.well-known/acme-challenge/ping" >/dev/null
+  echo "    local OK — если LE падает с connection, используйте ACME_MODE=dns"
 
-echo "==> certbot certonly --webroot -d $DOMAIN"
-run certbot certonly \
-  --webroot \
-  -w "$WEBROOT" \
-  -d "$DOMAIN" \
-  --email "$EMAIL" \
-  --agree-tos \
-  --non-interactive \
-  --keep-until-expiring \
-  --preferred-challenges http \
-  --deploy-hook "systemctl reload nginx"
+  echo "==> certbot certonly --webroot -d $DOMAIN"
+  run certbot certonly \
+    --webroot \
+    -w "$WEBROOT" \
+    -d "$DOMAIN" \
+    --email "$EMAIL" \
+    --agree-tos \
+    --non-interactive \
+    --keep-until-expiring \
+    --preferred-challenges http
+fi
 
 ensure_ssl_options
 
