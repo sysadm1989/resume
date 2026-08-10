@@ -1,166 +1,96 @@
 # Resume
 
-Сайт-резюме + сравнение вакансии (OpenCode).
+Сайт-резюме + сравнение вакансии (Hugging Face API).
 
-**Прод:** Docker Compose (`127.0.0.1:8787`) ← nginx + Let's Encrypt  
-**Репо:** `git@github.com:sysadm1989/resume.git` → `/opt/resume`
+| | |
+|--|--|
+| Репозиторий | https://github.com/sysadm1989/resume.git |
+| Каталог на сервере | `/opt/resume` |
+| Приложение | Docker: образ `node:22-bookworm-slim`, **без build** |
+| Файлы | весь репо монтируется в контейнер (`.:/app`) |
+| Снаружи | nginx + Let's Encrypt → `127.0.0.1:8787` |
+| Match | `HF_TOKEN` → `router.huggingface.co` |
 
 ```
-Internet :80/:443 → nginx (TLS) → 127.0.0.1:8787 (container)
-                                      ↑
-                         OPENCODE_CONFIG_DIR (host) mount
+браузер → :443 nginx → 127.0.0.1:8787 (node в Docker)
+                              │
+                              ├─ /opt/resume → /app (mount)
+                              └─ /api/match → Hugging Face
 ```
 
-| Скрипт | Назначение |
-|--------|------------|
-| `scripts/update.sh` | на сервере: `git pull` + rebuild |
-| `scripts/setup-ssl.sh` | nginx + Let's Encrypt |
-| `scripts/ui-smoke.mjs` | smoke UI (локально / против URL) |
-
-`.env` и `~/.config/opencode` в git **не** входят.
+`.env` с `HF_TOKEN` в git **не** коммитится.
 
 ---
 
-## Локальный запуск
+## Быстрый старт на сервере (root)
 
-Нужны: Node ≥ 20, OpenCode CLI + auth.
+### 1. Пакеты
 
 ```bash
-git clone git@github.com:sysadm1989/resume.git
-cd resume
-cp .env.example .env
-# OPENCODE_CONFIG_DIR=$HOME/.config/opencode
-
-curl -fsSL https://opencode.ai/install | bash
-export PATH="$HOME/.opencode/bin:$PATH"
-opencode auth
-
-npm install
-npm start          # http://127.0.0.1:8787
-# npm run dev      # с --watch
+apt-get update -y
+apt-get install -y docker.io docker-compose-v2 git curl
+systemctl enable --now docker
 ```
 
-Или через Docker (как на проде, без nginx):
+### 2. Код
 
 ```bash
-cp .env.example .env
-# OPENCODE_CONFIG_DIR=$HOME/.config/opencode
-docker compose --env-file .env up -d --build
-curl -fsS http://127.0.0.1:8787/api/health | python3 -m json.tool
-```
-
----
-
-## Тестирование
-
-```bash
-# сервис должен быть запущен (npm start или compose)
-npm run health
-
-curl -fsS http://127.0.0.1:8787/api/opencode | python3 -m json.tool
-# ожидайте opencodeOk: true
-
-node scripts/ui-smoke.mjs
-# npm run smoke
-# BASE_URL=https://your.domain npm run smoke
-
-# match
-curl -fsS -X POST http://127.0.0.1:8787/api/match \
-  -H 'Content-Type: application/json' \
-  -d '{"text":"DevOps Kubernetes GitLab CI Argo CD Vault"}' \
-  | python3 -m json.tool
-
-# PDF
-curl -fsS -o /tmp/resume.pdf http://127.0.0.1:8787/api/resume.pdf
-file /tmp/resume.pdf
-```
-
----
-
-## Деплой из GitHub
-
-ОС: Ubuntu/Debian. DNS A/AAAA → сервер. Порты 80/443 снаружи; **8787 наружу не открывать**.
-
-### 1. Docker
-
-```bash
-sudo apt-get update -y
-sudo apt-get install -y docker.io docker-compose-v2 git curl
-sudo systemctl enable --now docker
-sudo usermod -aG docker "$USER"
-# newgrp docker  или перелогин
-```
-
-### 2. Clone
-
-```bash
-sudo mkdir -p /opt/resume
-sudo chown "$(id -u):$(id -g)" /opt/resume
-git clone git@github.com:sysadm1989/resume.git /opt/resume
-cd /opt/resume && chmod +x scripts/*.sh
-```
-
-Нет доступа — deploy key:
-
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/resume_deploy -N ''
-# pubkey → GitHub → Deploy keys (RO)
-printf '%s\n' 'Host github.com' '  IdentityFile ~/.ssh/resume_deploy' '  IdentitiesOnly yes' >> ~/.ssh/config
-```
-
-### 3. OpenCode auth (хост, один раз)
-
-Auth на хосте, каталог монтируется в контейнер (CLI уже в образе).
-
-```bash
-curl -fsSL https://opencode.ai/install | bash
-export PATH="$HOME/.opencode/bin:$PATH"
-opencode auth
-ls -la ~/.config/opencode
-```
-
-### 4. `.env`
-
-```bash
+cd /opt
+git clone https://github.com/sysadm1989/resume.git
 cd /opt/resume
-cp .env.example .env
+chmod +x scripts/*.sh
 ```
 
+### 3. Конфиг
+
 ```bash
-OPENCODE_CONFIG_DIR=/home/ВАШ_USER/.config/opencode   # не /home/YOU/...
+cp .env.example .env
+nano .env
+```
+
+Обязательно:
+
+```bash
+HF_TOKEN=hf_...          # https://huggingface.co/settings/tokens
+                         # право: Make calls to the Inference Providers
 DOMAIN=resume.example.com
 LETSENCRYPT_EMAIL=you@example.com
 ```
 
+Остальное по умолчанию ок:
+
 ```bash
-test -d "$(grep '^OPENCODE_CONFIG_DIR=' .env | cut -d= -f2-)" && echo OK
+HF_API_BASE=https://router.huggingface.co/v1
+HF_MODEL=Qwen/Qwen2.5-7B-Instruct:cheapest
+PORT=8787
 ```
 
-### 5. Приложение
+### 4. Приложение
+
+DNS домена уже должен смотреть на сервер (для TLS). Порт **8787 наружу не открывать**.
 
 ```bash
 cd /opt/resume
-docker compose --env-file .env up -d --build
+docker compose up -d
 curl -fsS http://127.0.0.1:8787/api/health | python3 -m json.tool
-# нужно: "opencodeOk": true
 ```
 
-### 6. nginx + Let's Encrypt
+Ожидание: `"llmOk": true`. Если `false` — неверный/пустой `HF_TOKEN`.
 
-DNS уже указывает на сервер; health на localhost ок.
+Первый старт дольше: внутри контейнера `npm install` (кэш в volume `resume_node_modules`).
+
+### 5. HTTPS
 
 ```bash
 cd /opt/resume
 DOMAIN=resume.example.com LETSENCRYPT_EMAIL=you@example.com ./scripts/setup-ssl.sh
-curl -fsS "https://resume.example.com/api/health" | python3 -m json.tool
+curl -fsS https://resume.example.com/api/health | python3 -m json.tool
 ```
 
-Продление сертификата — timer certbot (`systemctl list-timers | grep certbot`).
-
-### 7. Проверка match на проде
+### 6. Проверка сравнения
 
 ```bash
-curl -fsS -X POST "https://resume.example.com/api/match" \
+curl -fsS -X POST https://resume.example.com/api/match \
   -H 'Content-Type: application/json' \
   -d '{"text":"DevOps Kubernetes GitLab CI Argo CD Vault"}' \
   | python3 -m json.tool
@@ -168,63 +98,103 @@ curl -fsS -X POST "https://resume.example.com/api/match" \
 
 ---
 
-## OpenCode
+## Обновление
 
-| Где | Что |
-|-----|-----|
-| Хост | `opencode auth` → `$HOME/.config/opencode` |
-| `.env` | `OPENCODE_CONFIG_DIR` = этот каталог |
-| Compose | volume → `/root/.config/opencode` |
-| API | `POST /api/match` → `opencode run` |
-
-Сменили user/home → обновить `OPENCODE_CONFIG_DIR` + `docker compose up -d`.  
-Сменили модель → `OPENCODE_MODEL` + `docker compose up -d`.
-
----
-
-## Обновление (после push в GitHub)
+После `git push` в GitHub:
 
 ```bash
 cd /opt/resume
 ./scripts/update.sh
-# SKIP_PULL=1 ./scripts/update.sh
 ```
 
-| Изменили | Действие |
-|----------|----------|
-| `content/`, `prompts/` | `git pull` достаточно |
-| код / Docker / `public/` | `./scripts/update.sh` |
-| только `.env` | `docker compose --env-file .env up -d` |
+Это: `git pull` → `docker compose up -d --force-recreate` (образа приложения нет).
+
+| Что меняли | Нужно |
+|------------|--------|
+| `content/`, `public/`, `prompts/` | часто хватит `git pull` |
+| `server.mjs`, `package.json`, `.env` | `./scripts/update.sh` |
 
 ---
 
-## TLS снова
+## Локально (разработка / тест)
 
 ```bash
-cd /opt/resume
-DOMAIN=… LETSENCRYPT_EMAIL=… ./scripts/setup-ssl.sh
-sudo certbot renew --dry-run
-sudo nginx -t && sudo systemctl reload nginx
+git clone https://github.com/sysadm1989/resume.git && cd resume
+cp .env.example .env    # HF_TOKEN=...
+npm install && npm start
+# http://127.0.0.1:8787
 ```
+
+Или тем же compose, что на проде:
+
+```bash
+docker compose up -d
+```
+
+Проверки:
+
+```bash
+npm run health
+npm run smoke
+curl -fsS http://127.0.0.1:8787/api/llm | python3 -m json.tool
+curl -fsS -o /tmp/r.pdf http://127.0.0.1:8787/api/resume.pdf && file /tmp/r.pdf
+```
+
+---
+
+## Переменные `.env`
+
+| Переменная | Зачем |
+|------------|--------|
+| `HF_TOKEN` | токен Hugging Face (обязательно для match) |
+| `HF_API_BASE` | `https://router.huggingface.co/v1` |
+| `HF_MODEL` | модель chat completions |
+| `LLM_TIMEOUT_MS` | таймаут match (мс), по умолчанию `120000` |
+| `MAX_VACANCY_CHARS` | лимит текста вакансии |
+| `DOMAIN` | для `setup-ssl.sh` |
+| `LETSENCRYPT_EMAIL` | для Let's Encrypt |
+
+Смена модели/токена:
+
+```bash
+nano /opt/resume/.env
+cd /opt/resume && docker compose up -d --force-recreate
+```
+
+---
+
+## Скрипты
+
+| Файл | Назначение |
+|------|------------|
+| `scripts/docker-entrypoint.sh` | `npm install` + `node server.mjs` в контейнере |
+| `scripts/update.sh` | обновление с GitHub |
+| `scripts/setup-ssl.sh` | nginx + certbot |
+| `scripts/ui-smoke.mjs` | smoke UI |
 
 ---
 
 ## Troubleshooting
 
-| Симптом | Действие |
-|---------|----------|
-| HTTPS нет | DNS, `nginx -t`, `systemctl status nginx`, `certbot certificates` |
-| certbot fail | A-запись, 80/443 свободны снаружи |
-| 502 | `curl -s http://127.0.0.1:8787/api/health`, `docker compose ps/logs` |
-| `opencodeOk: false` | путь в `.env`, был `opencode auth`, пересоздать контейнер |
-| Match auth / makeDirectory | убрать `/home/YOU/...`, снова `opencode auth` |
-| Match timeout / model | сеть контейнера, `OPENCODE_MODEL`, логи |
-| `git pull` rejected | на сервере не править tracked-файлы |
+| Симптом | Что сделать |
+|---------|-------------|
+| `llmOk: false` | `HF_TOKEN` в `.env`, не `hf_xxxxxxxx` |
+| Match 401/403 | токен + право Inference Providers |
+| Match 429 | лимит HF — подождать или другая `HF_MODEL` |
+| 502 от nginx | `curl -s http://127.0.0.1:8787/api/health`, `docker compose ps` |
+| HTTPS / certbot | DNS, порты 80/443, `nginx -t`, `certbot certificates` |
+| Контейнер не стартует | `docker compose logs -f resume` |
 
 ```bash
 cd /opt/resume
 docker compose logs -f --tail=100 resume
-curl -fsS http://127.0.0.1:8787/api/opencode | python3 -m json.tool
-ls -la "$(grep '^OPENCODE_CONFIG_DIR=' .env | cut -d= -f2-)"
-sudo tail -n 50 /var/log/nginx/error.log
+curl -fsS http://127.0.0.1:8787/api/llm | python3 -m json.tool
+```
+
+TLS переустановить:
+
+```bash
+cd /opt/resume
+DOMAIN=… LETSENCRYPT_EMAIL=… ./scripts/setup-ssl.sh
+certbot renew --dry-run
 ```

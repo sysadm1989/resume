@@ -282,7 +282,7 @@ async function checkMatchReady() {
     const res = await fetch("/api/health", { cache: "no-store" });
     if (!res.ok) throw new Error(`health HTTP ${res.status}`);
     const data = await res.json();
-    if (data.opencodeOk) {
+    if (data.llmOk || data.opencodeOk) {
       setMatchBadge("is-ok", "Готово к сравнению");
       if (badge) badge.title = "Можно сравнить вакансию с профилем кандидата";
       setMatchAlert(false);
@@ -297,8 +297,8 @@ async function checkMatchReady() {
     setMatchBadge("is-down", "Сравнение недоступно");
     setMatchAlert(true, {
       title: "Сравнение временно недоступно",
-      message: "Сервис оценки соответствия сейчас не отвечает.",
-      hint: "Резюме кандидата по-прежнему можно читать, скачать или распечатать. Попробуйте сравнение позже.",
+      message: data.llmError || "Сервис оценки соответствия сейчас не отвечает.",
+      hint: "Проверьте HF_TOKEN в .env. Резюме можно читать и скачать PDF.",
     });
     return false;
   } catch {
@@ -313,37 +313,37 @@ async function checkMatchReady() {
 }
 
 const MATCH_ERROR_COPY = {
-  opencode_timeout: {
+  llm_timeout: {
     title: "Сравнение занимает слишком долго",
     message: "Не удалось вовремя оценить соответствие вакансии и кандидата.",
     hint: "Повторите чуть позже. Резюме доступно без сравнения.",
   },
-  opencode_missing: {
+  llm_auth: {
     title: "Сравнение недоступно",
-    message: "Сервис оценки сейчас выключен.",
-    hint: "Можно изучить резюме кандидата вручную или вернуться позже.",
+    message: "Нет доступа к модели (токен Hugging Face).",
+    hint: "Администратору: задайте HF_TOKEN в .env. Резюме можно скачать PDF.",
   },
-  opencode_auth: {
+  llm_model: {
     title: "Сравнение недоступно",
-    message: "Сервис оценки временно недоступен.",
-    hint: "Резюме кандидата открыто ниже — его можно скачать или распечатать.",
+    message: "Выбранная модель временно недоступна.",
+    hint: "Попробуйте позже или смените HF_MODEL.",
   },
-  opencode_model: {
-    title: "Сравнение недоступно",
-    message: "Сервис оценки временно недоступен.",
-    hint: "Попробуйте позже или оцените профиль кандидата по резюме.",
+  llm_quota: {
+    title: "Лимит запросов",
+    message: "Исчерпан бесплатный лимит Hugging Face.",
+    hint: "Подождите и повторите позже.",
   },
-  opencode_empty: {
+  llm_empty: {
     title: "Не удалось получить результат",
-    message: "Сервис вернул пустой ответ.",
+    message: "Модель вернула пустой ответ.",
     hint: "Повторите сравнение. Резюме кандидата доступно без изменений.",
   },
-  opencode_bad_json: {
+  llm_bad_json: {
     title: "Не удалось разобрать результат",
-    message: "Ответ сервиса сравнения пришёл в неожиданном формате.",
+    message: "Ответ модели пришёл в неожиданном формате.",
     hint: "Повторите попытку чуть позже.",
   },
-  opencode_failed: {
+  llm_failed: {
     title: "Сравнение не выполнено",
     message: "Не удалось оценить соответствие вакансии и кандидата.",
     hint: "Попробуйте ещё раз. Резюме можно изучить вручную.",
@@ -1452,10 +1452,10 @@ async function runMatch() {
       const info = humanizeMatchFailure(data, res.status);
       setBusy(false, info.message, "error");
       showMatchError(info);
-      if (["opencode_missing", "opencode_auth", "opencode_model"].includes(info.code)) {
+      if (["llm_auth", "llm_model", "llm_quota"].includes(info.code)) {
         setMatchBadge("is-down", "Сравнение недоступно");
         setMatchAlert(true, { ...info, lock: true });
-      } else if (["opencode_timeout", "opencode_failed", "opencode_empty", "opencode_bad_json"].includes(info.code)) {
+      } else if (["llm_timeout", "llm_failed", "llm_empty", "llm_bad_json"].includes(info.code)) {
         setMatchBadge("is-down", "Сбой сравнения");
         setMatchAlert(true, { ...info, lock: false });
       }
@@ -1471,7 +1471,7 @@ async function runMatch() {
       return;
     }
     if (err?.name === "AbortError") {
-      const info = { ...MATCH_ERROR_COPY.opencode_timeout, code: "opencode_timeout" };
+      const info = { ...MATCH_ERROR_COPY.llm_timeout, code: "llm_timeout" };
       setBusy(false, info.message, "error");
       showMatchError(info);
       setMatchBadge("is-down", "Сбой сравнения");

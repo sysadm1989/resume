@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
- * Static resume site + OpenCode vacancy matcher.
- * Zero magic: Express serves public/, /api/* calls local `opencode run`.
+ * Static resume site + vacancy match via Hugging Face Inference API.
+ * Docker: mount repo → node image (no app build).
  */
 import express from "express";
 import multer from "multer";
 import { access, readFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
-import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PDFParse } from "pdf-parse";
@@ -42,23 +41,11 @@ const PHOTO_MIME = {
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || "0.0.0.0";
-const OPENCODE_BIN = process.env.OPENCODE_BIN || "opencode";
-const OPENCODE_MODEL = process.env.OPENCODE_MODEL || "opencode/deepseek-v4-flash-free";
-const OPENCODE_TIMEOUT_MS = Number(process.env.OPENCODE_TIMEOUT_MS || 180_000);
+const HF_TOKEN = String(process.env.HF_TOKEN || "").trim();
+const HF_API_BASE = String(process.env.HF_API_BASE || "https://router.huggingface.co/v1").replace(/\/$/, "");
+const HF_MODEL = process.env.HF_MODEL || "Qwen/Qwen2.5-7B-Instruct:cheapest";
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 120_000);
 const MAX_VACANCY_CHARS = Number(process.env.MAX_VACANCY_CHARS || 80_000);
-
-sanitizeOpenCodeConfigDir();
-
-function sanitizeOpenCodeConfigDir() {
-  const raw = process.env.OPENCODE_CONFIG_DIR;
-  if (!raw) return;
-  const looksPlaceholder = /\/home\/YOU\b|\/Users\/YOU\b|\$\{?HOME\}?|YOUR_/i.test(raw);
-  if (looksPlaceholder) {
-    console.warn(`[resume] ignore placeholder OPENCODE_CONFIG_DIR=${raw}`);
-    delete process.env.OPENCODE_CONFIG_DIR;
-    return;
-  }
-}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -71,30 +58,29 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.static(PUBLIC));
 
 app.get("/api/health", async (_req, res) => {
-  const probe = await probeOpenCode();
+  const llm = await probeLlm();
   res.json({
     ok: true,
     service: "resume-match",
-    model: OPENCODE_MODEL,
-    opencode: OPENCODE_BIN,
-    opencodeOk: probe.ok,
-    opencodeVersion: probe.version || null,
-    opencodeError: probe.ok ? null : probe.error,
+    provider: "huggingface",
+    model: HF_MODEL,
+    llmOk: llm.ok,
+    llmError: llm.ok ? null : llm.error,
   });
 });
 
-app.get("/api/opencode", async (_req, res) => {
-  const probe = await probeOpenCode();
-  const status = probe.ok ? 200 : 503;
+app.get("/api/llm", async (_req, res) => {
+  const llm = await probeLlm();
+  const status = llm.ok ? 200 : 503;
   res.status(status).json({
-    ok: probe.ok,
-    bin: OPENCODE_BIN,
-    model: OPENCODE_MODEL,
-    version: probe.version || null,
-    error: probe.ok ? null : probe.error,
-    hint: probe.ok
+    ok: llm.ok,
+    provider: "huggingface",
+    model: HF_MODEL,
+    apiBase: HF_API_BASE,
+    error: llm.ok ? null : llm.error,
+    hint: llm.ok
       ? null
-      : "Установите OpenCode и выполните opencode auth под тем же пользователем, что запускает сервис",
+      : "Задайте HF_TOKEN в .env (https://huggingface.co/settings/tokens, Inference Providers)",
   });
 });
 
@@ -178,21 +164,23 @@ app.post("/api/match", upload.single("pdf"), async (req, res) => {
       vacancy.trim(),
     ].join("\n");
 
-    const raw = await runOpenCode(message);
+    const raw = await runLlm(message);
     const parsed = extractJson(raw);
-    parsed.model = OPENCODE_MODEL;
+    parsed.model = HF_MODEL;
+    parsed.provider = "huggingface";
     parsed.elapsedMs = Date.now() - started;
     parsed.vacancyChars = vacancy.length;
     return res.json(parsed);
   } catch (err) {
     console.error("[match]", err);
-    const classified = classifyOpenCodeError(err);
+    const classified = classifyMatchError(err);
     return res.status(classified.status).json({
       error: classified.error,
       code: classified.code,
       hint: classified.hint,
       detail: classified.detail || undefined,
-      model: OPENCODE_MODEL,
+      model: HF_MODEL,
+      provider: "huggingface",
       elapsedMs: Date.now() - started,
     });
   }
@@ -399,49 +387,17 @@ function htmlToText(html) {
     .trim();
 }
 
-function probeOpenCode() {
-  return new Promise((resolve) => {
-    const child = spawn(OPENCODE_BIN, ["--version"], {
-      cwd: ROOT,
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
+function probeLlm() {
+  if (!HF_TOKEN || /^hf_x+$/i.test(HF_TOKEN) || HF_TOKEN.includes("xxxxxxxx")) {
+    return Promise.resolve({
+      ok: false,
+      error: "HF_TOKEN не задан или это заглушка из .env.example",
     });
-
-    let stdout = "";
-    let stderr = "";
-    const timer = setTimeout(() => {
-      child.kill("SIGTERM");
-      resolve({ ok: false, error: `OpenCode не ответил за 5с (${OPENCODE_BIN} --version)` });
-    }, 5_000);
-
-    child.stdout.on("data", (d) => { stdout += d.toString("utf8"); });
-    child.stderr.on("data", (d) => { stderr += d.toString("utf8"); });
-    child.on("error", (err) => {
-      clearTimeout(timer);
-      const missing = err.code === "ENOENT";
-      resolve({
-        ok: false,
-        error: missing
-          ? `OpenCode не найден (bin=${OPENCODE_BIN}). Установите CLI и добавьте в PATH`
-          : `Не удалось запустить OpenCode: ${err.message}`,
-      });
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      const out = (stdout || stderr).trim();
-      if (code !== 0) {
-        resolve({
-          ok: false,
-          error: `OpenCode --version exit ${code}: ${out.slice(0, 240) || "no output"}`,
-        });
-        return;
-      }
-      resolve({ ok: true, version: out.split("\n")[0].trim() || "ok" });
-    });
-  });
+  }
+  return Promise.resolve({ ok: true });
 }
 
-function classifyOpenCodeError(err) {
+function classifyMatchError(err) {
   const raw = err?.message || String(err);
   const lower = raw.toLowerCase();
 
@@ -475,42 +431,52 @@ function classifyOpenCodeError(err) {
     };
   }
 
-  if (/timeout/i.test(raw)) {
+  if (/timeout|aborted/i.test(raw)) {
     return {
       status: 504,
-      code: "opencode_timeout",
-      error: "OpenCode не ответил вовремя",
-      hint: `Модель ${OPENCODE_MODEL} зависла или API Zen недоступен. Повторите позже или проверьте сеть/auth`,
+      code: "llm_timeout",
+      error: "Модель не ответила вовремя",
+      hint: `Увеличьте LLM_TIMEOUT_MS или смените HF_MODEL (сейчас ${HF_MODEL})`,
       detail: raw,
     };
   }
 
-  if (/enoent|не удалось запустить|не найден/i.test(raw)) {
+  if (/hf_token|заглушка|не задан/i.test(raw)) {
     return {
       status: 503,
-      code: "opencode_missing",
-      error: "OpenCode не установлен или недоступен серверу",
-      hint: "На сервере: curl -fsSL https://opencode.ai/install | bash && opencode auth",
+      code: "llm_auth",
+      error: "Нет токена Hugging Face",
+      hint: "В .env укажите HF_TOKEN с https://huggingface.co/settings/tokens (Inference Providers)",
       detail: raw,
     };
   }
 
-  if (/FileSystem\.makeDirectory|OPENCODE_CONFIG_DIR|\/home\/YOU|config\/opencode/i.test(raw)) {
+  if (/401|403|unauthorized|invalid.*token/i.test(lower)) {
     return {
       status: 503,
-      code: "opencode_auth",
-      error: "OpenCode не смог открыть свой конфиг",
-      hint: "В .env уберите OPENCODE_CONFIG_DIR=/home/YOU/... (это заглушка). Локально достаточно ~/.config/opencode после opencode auth",
+      code: "llm_auth",
+      error: "Токен Hugging Face отклонён",
+      hint: "Проверьте HF_TOKEN и право Make calls to Inference Providers",
       detail: raw,
     };
   }
 
-  if (/model|not found|unknown model|unsupported/i.test(lower) && /model|deepseek|opencode\//i.test(lower)) {
+  if (/404|model.*(not found|unavailable)|does not exist/i.test(lower)) {
     return {
       status: 503,
-      code: "opencode_model",
-      error: `Модель недоступна: ${OPENCODE_MODEL}`,
-      hint: "Проверьте OPENCODE_MODEL в .env и список: opencode models",
+      code: "llm_model",
+      error: `Модель недоступна: ${HF_MODEL}`,
+      hint: "Смените HF_MODEL в .env",
+      detail: raw,
+    };
+  }
+
+  if (/429|rate limit|quota|payment|credits/i.test(lower)) {
+    return {
+      status: 429,
+      code: "llm_quota",
+      error: "Лимит Hugging Face исчерпан",
+      hint: "Подождите или смените модель / тариф HF",
       detail: raw,
     };
   }
@@ -518,9 +484,9 @@ function classifyOpenCodeError(err) {
   if (/пустой ответ/i.test(raw)) {
     return {
       status: 502,
-      code: "opencode_empty",
-      error: "OpenCode вернул пустой ответ",
-      hint: "Попробуйте ещё раз. Если повторяется — смените модель или проверьте лимиты free-tier",
+      code: "llm_empty",
+      error: "Модель вернула пустой ответ",
+      hint: "Повторите запрос или смените HF_MODEL",
       detail: raw,
     };
   }
@@ -528,19 +494,19 @@ function classifyOpenCodeError(err) {
   if (/не удалось разобрать json/i.test(raw)) {
     return {
       status: 502,
-      code: "opencode_bad_json",
-      error: "OpenCode ответил, но не в ожидаемом JSON",
-      hint: "Повторите запрос. Модель могла «съехать» с формата ответа",
+      code: "llm_bad_json",
+      error: "Модель ответила не в JSON",
+      hint: "Повторите сравнение. При частых сбоях смените модель",
       detail: raw,
     };
   }
 
-  if (/open.?code/i.test(raw)) {
+  if (/huggingface|hf api|router\.huggingface/i.test(raw)) {
     return {
       status: 502,
-      code: "opencode_failed",
-      error: "OpenCode не смог выполнить сравнение",
-      hint: "Смотрите journalctl -u resume или логи контейнера. Частые причины: auth, сеть, модель",
+      code: "llm_failed",
+      error: "Hugging Face API не выполнил сравнение",
+      hint: "Смотрите docker compose logs -f resume",
       detail: raw,
     };
   }
@@ -554,91 +520,93 @@ function classifyOpenCodeError(err) {
   };
 }
 
-function runOpenCode(message) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      "run",
-      "--format", "json",
-      "--dir", ROOT,
-      "--title", "resume-vacancy-match",
-      "-m", OPENCODE_MODEL,
-      message,
-    ];
-
-    const child = spawn(OPENCODE_BIN, args, {
-      cwd: ROOT,
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-    const timer = setTimeout(() => {
-      child.kill("SIGTERM");
-      reject(new Error(`OpenCode timeout after ${OPENCODE_TIMEOUT_MS}ms`));
-    }, OPENCODE_TIMEOUT_MS);
-
-    child.stdout.on("data", (d) => { stdout += d.toString("utf8"); });
-    child.stderr.on("data", (d) => { stderr += d.toString("utf8"); });
-    child.on("error", (err) => {
-      clearTimeout(timer);
-      reject(new Error(`Не удалось запустить OpenCode (${OPENCODE_BIN}): ${err.message}`));
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      if (code !== 0) {
-        reject(new Error(`OpenCode exit ${code}: ${stderr.slice(-800) || stdout.slice(-800)}`));
-        return;
-      }
-      resolve(stdout);
-    });
-  });
-}
-
-function extractJson(ndjson) {
-  const texts = [];
-  for (const line of ndjson.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      const evt = JSON.parse(trimmed);
-      if (evt?.type === "text" && evt?.part?.text) texts.push(evt.part.text);
-      if (evt?.type === "error") {
-        throw new Error(`OpenCode error: ${evt.error?.message || JSON.stringify(evt.error) || "unknown"}`);
-      }
-    } catch (err) {
-      if (err.message.startsWith("OpenCode")) throw err;
-      // skip non-json noise
-    }
+async function runLlm(message) {
+  if (!HF_TOKEN || /^hf_x+$/i.test(HF_TOKEN) || HF_TOKEN.includes("xxxxxxxx")) {
+    throw new Error("HF_TOKEN не задан");
   }
 
-  const blob = texts.join("\n").trim();
-  if (!blob) throw new Error("OpenCode вернул пустой ответ");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), LLM_TIMEOUT_MS);
 
+  try {
+    const res = await fetch(`${HF_API_BASE}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${HF_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: HF_MODEL,
+        temperature: 0.2,
+        max_tokens: 4096,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Ты отвечаешь только одним валидным JSON-объектом. Без markdown, без пояснений до/после JSON.",
+          },
+          { role: "user", content: message },
+        ],
+      }),
+      signal: ctrl.signal,
+    });
+
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`HF API HTTP ${res.status}: ${text.slice(0, 400)}`);
+    }
+
+    if (!res.ok) {
+      const msg =
+        data?.error?.message ||
+        data?.error ||
+        data?.message ||
+        text.slice(0, 400);
+      throw new Error(`HF API HTTP ${res.status}: ${msg}`);
+    }
+
+    const content = data?.choices?.[0]?.message?.content;
+    if (content == null || String(content).trim() === "") {
+      throw new Error("Модель вернула пустой ответ");
+    }
+    return String(content);
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      throw new Error(`LLM timeout after ${LLM_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function extractJson(blob) {
+  const text = String(blob || "").trim();
+  if (!text) throw new Error("Модель вернула пустой ответ");
+
+  const fenced = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
   const candidates = [
-    blob,
-    ...((blob.match(/\{[\s\S]*\}/g) || []).sort((a, b) => b.length - a.length)),
+    fenced,
+    text,
+    ...((text.match(/\{[\s\S]*\}/g) || []).sort((a, b) => b.length - a.length)),
   ];
 
   for (const c of candidates) {
     try {
       return JSON.parse(c);
     } catch {
-      // try next
+      // next
     }
   }
 
-  // strip ```json fences if present
-  const fenced = blob.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-  try {
-    return JSON.parse(fenced);
-  } catch {
-    throw new Error(`Не удалось разобрать JSON от OpenCode. Фрагмент: ${blob.slice(0, 400)}`);
-  }
+  throw new Error(`Не удалось разобрать JSON от модели. Фрагмент: ${text.slice(0, 400)}`);
 }
 
 app.listen(PORT, HOST, () => {
   console.log(`[resume] http://${HOST}:${PORT}`);
-  console.log(`[resume] model=${OPENCODE_MODEL} bin=${OPENCODE_BIN}`);
+  console.log(`[resume] provider=huggingface model=${HF_MODEL}`);
   console.log(`[resume] source=${RESUME_MD}`);
 });
