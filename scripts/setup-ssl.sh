@@ -3,7 +3,7 @@
 # Запускать на сервере из каталога проекта (/opt/resume).
 #
 # Пример:
-#   DOMAIN=resume.example.com LETSENCRYPT_EMAIL=you@mail.com ./scripts/setup-ssl.sh
+#   DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=sysadm1989@gmail.com ./scripts/setup-ssl.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,7 +14,7 @@ SITE_NAME="${SITE_NAME:-resume}"
 WEBROOT="${WEBROOT:-/var/www/certbot}"
 
 if [[ -z "$DOMAIN" ]]; then
-  echo "Usage: DOMAIN=resume.example.com LETSENCRYPT_EMAIL=you@mail.com $0"
+  echo "Usage: DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=sysadm1989@gmail.com $0"
   exit 1
 fi
 if [[ -z "$EMAIL" ]]; then

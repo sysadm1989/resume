@@ -2,13 +2,13 @@
 #   deploy/nginx/resume.conf.template
 #   deploy/nginx/resume-ssl.conf.template
 # Установка SSL:
-#   DOMAIN=resume.example.com LETSENCRYPT_EMAIL=you@mail.com ./scripts/setup-ssl.sh
+#   DOMAIN=alexnazarov.site LETSENCRYPT_EMAIL=sysadm1989@gmail.com ./scripts/setup-ssl.sh
 #
 # Ниже — минимальный HTTP-прокси на Docker-приложение (127.0.0.1:8787).
 
 server {
   listen 80;
-  server_name resume.example.com;
+  server_name alexnazarov.site;
 
   client_max_body_size 10m;
 
