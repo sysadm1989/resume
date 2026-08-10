@@ -1,4 +1,11 @@
-# Пример reverse-proxy (опционально)
+# Пример reverse-proxy — актуальные шаблоны:
+#   deploy/nginx/resume.conf.template
+#   deploy/nginx/resume-ssl.conf.template
+# Установка SSL:
+#   DOMAIN=resume.example.com LETSENCRYPT_EMAIL=you@mail.com ./scripts/setup-ssl.sh
+#
+# Ниже — минимальный HTTP-прокси на Docker-приложение (127.0.0.1:8787).
+
 server {
   listen 80;
   server_name resume.example.com;
@@ -12,7 +19,6 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
-    # match может идти 1–3 минуты
     proxy_read_timeout 300s;
   }
 }

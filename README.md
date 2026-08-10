@@ -1,221 +1,230 @@
-# Resume — Senior DevOps
+# Resume
 
-Статический сайт резюме + сравнение вакансии с резюме через **OpenCode**.
+Сайт-резюме + сравнение вакансии (OpenCode).
 
-| Что | Где |
-|-----|-----|
-| Текст резюме (источник) | `content/resume.md` |
-| Фото | `content/photo.jpg` (или `.png` / `.webp`) |
-| UI | `public/` (обычный HTML/CSS/JS) |
-| Промпт матчинга | `prompts/match.md` |
-| Сервер | `server.mjs` |
+**Прод:** Docker Compose (`127.0.0.1:8787`) ← nginx + Let's Encrypt  
+**Репо:** `git@github.com:sysadm1989/resume.git` → `/opt/resume`
 
-Резюме правите **только в Markdown**. Сайт подхватывает файл на лету (`/api/resume.md`).
-
-### Фото
-
-Положите портрет рядом с резюме:
-
-```bash
-cp ~/Downloads/me.jpg ~/Documents/resume/content/photo.jpg
+```
+Internet :80/:443 → nginx (TLS) → 127.0.0.1:8787 (container)
+                                      ↑
+                         OPENCODE_CONFIG_DIR (host) mount
 ```
 
-Поддерживаются имена: `photo.jpg|jpeg|png|webp|svg` и `avatar.*`.  
-После замены файла обновите страницу — фото появится в hero и рядом с текстом резюме.
+| Скрипт | Назначение |
+|--------|------------|
+| `scripts/update.sh` | на сервере: `git pull` + rebuild |
+| `scripts/setup-ssl.sh` | nginx + Let's Encrypt |
+| `scripts/ui-smoke.mjs` | smoke UI (локально / против URL) |
 
-Сейчас в репозитории лежит плейсхолдер `content/photo.svg` (инициалы). Замените его своим портретом:
-
-```bash
-# пример: реальное фото перекроет svg (jpg/png имеют приоритет выше)
-cp ~/Downloads/me.jpg ~/Documents/resume/content/photo.jpg
-rm ~/Documents/resume/content/photo.svg   # опционально
-```
+`.env` и `~/.config/opencode` в git **не** входят.
 
 ---
 
-## Быстрый старт (локально)
+## Локальный запуск
 
-### 1. Требования
-
-- **Node.js 20+**
-- **OpenCode CLI** (`opencode`) и рабочий провайдер/модель
+Нужны: Node ≥ 20, OpenCode CLI + auth.
 
 ```bash
-# OpenCode (если ещё нет)
-curl -fsSL https://opencode.ai/install | bash
-
-# Проверка моделей
-opencode models | head
-```
-
-### 2. Установка и запуск
-
-```bash
-cd ~/Documents/resume
-cp .env.example .env          # при желании поправьте OPENCODE_MODEL
-npm install
-npm start
-```
-
-Откройте: **http://127.0.0.1:8787**
-
-Проверка API:
-
-```bash
-curl -s http://127.0.0.1:8787/api/health
-```
-
-### 3. Match вакансии
-
-На сайте блок **«Соответствие вакансии»**:
-
-- текст
-- URL
-- PDF
-
-Сервер вызывает:
-
-```text
-opencode run --format json -m $OPENCODE_MODEL …
-```
-
-и показывает score / совпадения / пробелы.
-
----
-
-## Деплой на сервер (прозрачный)
-
-Есть **два** одинаково простых пути. Выберите один.
-
-### Вариант A — systemd (рекомендуется)
-
-С ноутбука:
-
-```bash
-chmod +x scripts/deploy.sh
-./scripts/deploy.sh user@YOUR_SERVER
-# или:
-# DEPLOY_PATH=/opt/resume ./scripts/deploy.sh user@YOUR_SERVER
-```
-
-Скрипт:
-
-1. `rsync` проекта на сервер (`/opt/resume` по умолчанию)
-2. `npm install --omit=dev`
-3. ставит OpenCode, если нет
-4. ставит unit `resume.service` и делает `systemctl enable --now`
-
-На сервере один раз:
-
-```bash
-# Node 20+ (пример для Debian/Ubuntu)
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Авторизация OpenCode (интерактивно под тем же user, что в systemd)
-opencode auth   # или opencode providers — как принято в вашей версии
-```
-
-Проверка:
-
-```bash
-sudo systemctl status resume
-curl -s http://127.0.0.1:8787/api/health
-```
-
-Опционально nginx: скопируйте `deploy/nginx.conf.example` и выдайте TLS (certbot).
-
-### Вариант B — Docker Compose
-
-На сервере должны быть Docker + креды OpenCode в `~/.config/opencode`.
-
-```bash
-cd /opt/resume   # после rsync/git clone
+git clone git@github.com:sysadm1989/resume.git
+cd resume
 cp .env.example .env
-# В .env укажите абсолютный путь:
-# OPENCODE_CONFIG_DIR=/home/ubuntu/.config/opencode
+# OPENCODE_CONFIG_DIR=$HOME/.config/opencode
 
-docker compose up -d --build
-curl -s http://127.0.0.1:8787/api/health
+curl -fsSL https://opencode.ai/install | bash
+export PATH="$HOME/.opencode/bin:$PATH"
+opencode auth
+
+npm install
+npm start          # http://127.0.0.1:8787
+# npm run dev      # с --watch
 ```
 
-Обновление резюме без пересборки: правьте `content/resume.md` (том смонтирован).
-
-> Match **не работает** без валидных credentials OpenCode внутри контейнера/хоста.
-
----
-
-## Конфиг (`.env`)
-
-| Переменная | По умолчанию | Смысл |
-|------------|--------------|--------|
-| `PORT` | `8787` | порт HTTP |
-| `OPENCODE_BIN` | `opencode` | путь к CLI |
-| `OPENCODE_MODEL` | `opencode/deepseek-v4-flash-free` | бесплатная DeepSeek V4 Flash (Zen) для match |
-| `OPENCODE_TIMEOUT_MS` | `180000` | таймаут анализа |
-| `MAX_VACANCY_CHARS` | `80000` | лимит текста вакансии |
-
-Сменить модель:
+Или через Docker (как на проде, без nginx):
 
 ```bash
-# список
-opencode models
-
-# в .env (бесплатная DeepSeek V4)
-OPENCODE_MODEL=opencode/deepseek-v4-flash-free
+cp .env.example .env
+# OPENCODE_CONFIG_DIR=$HOME/.config/opencode
+docker compose --env-file .env up -d --build
+curl -fsS http://127.0.0.1:8787/api/health | python3 -m json.tool
 ```
 
 ---
 
-## Как обновить резюме
+## Тестирование
 
-1. Отредактируйте `content/resume.md`
-2. Положите/замените `content/photo.jpg` при необходимости
-3. Обновите контакты/образование/даты под себя
-4. На сервере: `rsync` / `git pull` / снова `./scripts/deploy.sh`
-5. Обновите страницу в браузере — MD и фото читаются с диска
+```bash
+# сервис должен быть запущен (npm start или compose)
+npm run health
 
-Печать в PDF: кнопка **«Печать / PDF»** в шапке (системный диалог печати).
+curl -fsS http://127.0.0.1:8787/api/opencode | python3 -m json.tool
+# ожидайте opencodeOk: true
 
----
+node scripts/ui-smoke.mjs
+# npm run smoke
+# BASE_URL=https://your.domain npm run smoke
 
-## Структура
+# match
+curl -fsS -X POST http://127.0.0.1:8787/api/match \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"DevOps Kubernetes GitLab CI Argo CD Vault"}' \
+  | python3 -m json.tool
 
-```text
-content/resume.md      ← источник резюме
-content/photo.jpg      ← фото (опционально)
-prompts/match.md       ← системный промпт сравнения
-public/                ← HTML/CSS/JS
-server.mjs             ← static + /api/match + /api/resume.md + /api/photo
-deploy/resume.service  ← systemd unit-шаблон
-deploy/nginx.conf.example
-scripts/deploy.sh      ← one-shot деплой по SSH
-Dockerfile / docker-compose.yml
+# PDF
+curl -fsS -o /tmp/resume.pdf http://127.0.0.1:8787/api/resume.pdf
+file /tmp/resume.pdf
 ```
 
 ---
 
-## API
+## Деплой из GitHub
 
-- `GET /api/health` — живость
-- `GET /api/resume.md` — сырой Markdown
-- `GET /api/photo` — фото из `content/`
-- `GET /api/photo/meta` — есть ли фото (`{ ok, file }`)
-- `POST /api/match` — JSON `{ "text": "..." }` или `{ "url": "..." }`, либо `multipart` поле `pdf`
+ОС: Ubuntu/Debian. DNS A/AAAA → сервер. Порты 80/443 снаружи; **8787 наружу не открывать**.
+
+### 1. Docker
+
+```bash
+sudo apt-get update -y
+sudo apt-get install -y docker.io docker-compose-v2 git curl
+sudo systemctl enable --now docker
+sudo usermod -aG docker "$USER"
+# newgrp docker  или перелогин
+```
+
+### 2. Clone
+
+```bash
+sudo mkdir -p /opt/resume
+sudo chown "$(id -u):$(id -g)" /opt/resume
+git clone git@github.com:sysadm1989/resume.git /opt/resume
+cd /opt/resume && chmod +x scripts/*.sh
+```
+
+Нет доступа — deploy key:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/resume_deploy -N ''
+# pubkey → GitHub → Deploy keys (RO)
+printf '%s\n' 'Host github.com' '  IdentityFile ~/.ssh/resume_deploy' '  IdentitiesOnly yes' >> ~/.ssh/config
+```
+
+### 3. OpenCode auth (хост, один раз)
+
+Auth на хосте, каталог монтируется в контейнер (CLI уже в образе).
+
+```bash
+curl -fsSL https://opencode.ai/install | bash
+export PATH="$HOME/.opencode/bin:$PATH"
+opencode auth
+ls -la ~/.config/opencode
+```
+
+### 4. `.env`
+
+```bash
+cd /opt/resume
+cp .env.example .env
+```
+
+```bash
+OPENCODE_CONFIG_DIR=/home/ВАШ_USER/.config/opencode   # не /home/YOU/...
+DOMAIN=resume.example.com
+LETSENCRYPT_EMAIL=you@example.com
+```
+
+```bash
+test -d "$(grep '^OPENCODE_CONFIG_DIR=' .env | cut -d= -f2-)" && echo OK
+```
+
+### 5. Приложение
+
+```bash
+cd /opt/resume
+docker compose --env-file .env up -d --build
+curl -fsS http://127.0.0.1:8787/api/health | python3 -m json.tool
+# нужно: "opencodeOk": true
+```
+
+### 6. nginx + Let's Encrypt
+
+DNS уже указывает на сервер; health на localhost ок.
+
+```bash
+cd /opt/resume
+DOMAIN=resume.example.com LETSENCRYPT_EMAIL=you@example.com ./scripts/setup-ssl.sh
+curl -fsS "https://resume.example.com/api/health" | python3 -m json.tool
+```
+
+Продление сертификата — timer certbot (`systemctl list-timers | grep certbot`).
+
+### 7. Проверка match на проде
+
+```bash
+curl -fsS -X POST "https://resume.example.com/api/match" \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"DevOps Kubernetes GitLab CI Argo CD Vault"}' \
+  | python3 -m json.tool
+```
+
+---
+
+## OpenCode
+
+| Где | Что |
+|-----|-----|
+| Хост | `opencode auth` → `$HOME/.config/opencode` |
+| `.env` | `OPENCODE_CONFIG_DIR` = этот каталог |
+| Compose | volume → `/root/.config/opencode` |
+| API | `POST /api/match` → `opencode run` |
+
+Сменили user/home → обновить `OPENCODE_CONFIG_DIR` + `docker compose up -d`.  
+Сменили модель → `OPENCODE_MODEL` + `docker compose up -d`.
+
+---
+
+## Обновление (после push в GitHub)
+
+```bash
+cd /opt/resume
+./scripts/update.sh
+# SKIP_PULL=1 ./scripts/update.sh
+```
+
+| Изменили | Действие |
+|----------|----------|
+| `content/`, `prompts/` | `git pull` достаточно |
+| код / Docker / `public/` | `./scripts/update.sh` |
+| только `.env` | `docker compose --env-file .env up -d` |
+
+---
+
+## TLS снова
+
+```bash
+cd /opt/resume
+DOMAIN=… LETSENCRYPT_EMAIL=… ./scripts/setup-ssl.sh
+sudo certbot renew --dry-run
+sudo nginx -t && sudo systemctl reload nginx
+```
 
 ---
 
 ## Troubleshooting
 
-| Симптом | Что проверить |
-|---------|----------------|
-| Сайт открывается, match падает | `which opencode`, `opencode models`, креды |
-| `OpenCode exit …` | смотрите journalctl: `sudo journalctl -u resume -n 100` |
-| URL вакансии пустой | anti-bot у hh/linkedin — вставьте текст или PDF |
-| Docker match fails | смонтирован ли `OPENCODE_CONFIG_DIR`, тот же user/home |
+| Симптом | Действие |
+|---------|----------|
+| HTTPS нет | DNS, `nginx -t`, `systemctl status nginx`, `certbot certificates` |
+| certbot fail | A-запись, 80/443 свободны снаружи |
+| 502 | `curl -s http://127.0.0.1:8787/api/health`, `docker compose ps/logs` |
+| `opencodeOk: false` | путь в `.env`, был `opencode auth`, пересоздать контейнер |
+| Match auth / makeDirectory | убрать `/home/YOU/...`, снова `opencode auth` |
+| Match timeout / model | сеть контейнера, `OPENCODE_MODEL`, логи |
+| `git pull` rejected | на сервере не править tracked-файлы |
 
----
-
-## Лицензия
-
-Личный проект резюме. Используйте как угодно для себя.
+```bash
+cd /opt/resume
+docker compose logs -f --tail=100 resume
+curl -fsS http://127.0.0.1:8787/api/opencode | python3 -m json.tool
+ls -la "$(grep '^OPENCODE_CONFIG_DIR=' .env | cut -d= -f2-)"
+sudo tail -n 50 /var/log/nginx/error.log
+```

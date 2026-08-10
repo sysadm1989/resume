@@ -45,7 +45,7 @@
               <span class="btn-shine" aria-hidden="true"></span>
             </a>
             <a class="btn btn-ghost" href="/api/resume.md" download="resume.md">Скачать MD</a>
-            <button class="btn btn-ghost" type="button" id="btn-print">Печать / PDF</button>
+            <button class="btn btn-ghost" type="button" id="btn-download-pdf">Скачать PDF</button>
           </div>
           <div class="stat-row" id="skill-chips"></div>
         </div>
@@ -92,7 +92,7 @@
     <section id="resume" class="panel resume-panel reveal">
       <div class="panel-head">
         <h2>Резюме</h2>
-        <span class="badge">source: <code>content/resume.md</code></span>
+        <span class="badge">кандидат · <code>resume.md</code></span>
       </div>
       <article id="resume-content" class="markdown-body">
         <p class="loading">Загрузка resume.md…</p>
@@ -102,12 +102,16 @@
     <section id="match" class="panel match-panel reveal">
       <div class="panel-head">
         <h2>Соответствие вакансии</h2>
-        <span class="badge badge-accent"><span class="badge-dot"></span> OpenCode</span>
+        <span class="badge badge-accent" id="match-ready-badge" title="Статус сравнения с кандидатом">
+          <span class="badge-dot" id="match-ready-dot"></span>
+          <span id="match-ready-text">Проверка…</span>
+        </span>
       </div>
       <p class="lead">
-        Вставьте текст вакансии, ссылку или PDF — сравнение с резюме через OpenCode.
+        Вставьте текст вакансии, ссылку или PDF — сравните требования с профилем кандидата.
         Удобно рекрутеру и hiring-менеджеру.
       </p>
+      <div class="match-alert" id="match-alert" hidden role="status" aria-live="polite"></div>
 
       <div class="tabs" role="tablist">
         <button class="tab active" data-tab="text" type="button">Текст</button>
@@ -123,7 +127,7 @@
         <div class="tab-panel" data-panel="url">
           <label class="field-label" for="vacancy-url">URL вакансии</label>
           <input id="vacancy-url" type="url" placeholder="https://hh.ru/vacancy/…" />
-          <p class="hint">Сервер скачает страницу и извлечёт текст (лучшие результаты на страницах без жёсткой anti-bot защиты).</p>
+          <p class="hint">Сервер скачает страницу и извлечёт текст. Если hh.ru блокирует загрузку — вставьте текст вакансии вручную.</p>
         </div>
         <div class="tab-panel" data-panel="pdf">
           <label class="field-label" for="vacancy-pdf">PDF файл</label>
@@ -137,21 +141,46 @@
 
       <div class="match-actions">
         <button class="btn btn-primary" type="button" id="btn-match">
-          <span class="btn-label">Сравнить с резюме</span>
+          <span class="btn-label">Сравнить с кандидатом</span>
           <span class="btn-spinner" hidden></span>
           <span class="btn-shine" aria-hidden="true"></span>
         </button>
         <p class="hint" id="match-status"></p>
       </div>
 
+      <div id="match-error" class="match-error" hidden role="alert"></div>
       <div id="match-result" class="match-result" hidden></div>
     </section>
   </main>
 
   <footer class="footer reveal">
-    <span>Резюме в Markdown · UI static HTML · match via OpenCode</span>
-    <a href="https://opencode.ai" target="_blank" rel="noopener">opencode.ai</a>
+    <span>Резюме кандидата · соответствие вакансии · скачать PDF</span>
   </footer>
+
+
+  <div class="contact-modal" id="contact-modal" hidden>
+    <div class="contact-modal-backdrop" data-close-modal></div>
+    <div class="contact-modal-card" role="dialog" aria-modal="true" aria-labelledby="contact-modal-title">
+      <button type="button" class="contact-modal-close" data-close-modal aria-label="Закрыть">×</button>
+      <p class="contact-modal-eyebrow">Сильное совпадение</p>
+      <h2 id="contact-modal-title">Свяжитесь с кандидатом</h2>
+      <p class="contact-modal-lead">
+        Соответствие вакансии <strong id="contact-modal-score">70%+</strong> —
+        можно сразу написать или позвонить.
+      </p>
+      <div class="contact-modal-actions">
+        <a class="contact-pill" id="contact-phone" href="tel:+79175344435">
+          <span class="contact-pill-label">Телефон</span>
+          <span class="contact-pill-value" id="contact-phone-text">+7 (917) 534-44-35</span>
+        </a>
+        <a class="contact-pill" id="contact-telegram" href="https://t.me/alexnazarov89" target="_blank" rel="noopener">
+          <span class="contact-pill-label">Telegram</span>
+          <span class="contact-pill-value" id="contact-telegram-text">@alexnazarov89</span>
+        </a>
+      </div>
+      <button type="button" class="btn btn-ghost contact-modal-dismiss" data-close-modal>Закрыть</button>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
   <script src="/assets/app.js"></script>

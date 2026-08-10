@@ -10,11 +10,13 @@
   "scripts": {
     "start": "node --env-file=.env server.mjs",
     "dev": "node --watch --env-file=.env server.mjs",
-    "health": "curl -fsS http://127.0.0.1:${PORT:-8787}/api/health | python3 -m json.tool"
+    "health": "curl -fsS http://127.0.0.1:${PORT:-8787}/api/health | python3 -m json.tool",
+    "smoke": "node scripts/ui-smoke.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",
     "multer": "^2.0.2",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.19.1"
   }
 }

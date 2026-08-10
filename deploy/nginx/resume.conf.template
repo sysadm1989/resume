@@ -1,0 +1,29 @@
+# HTTP → ACME + redirect to HTTPS (после certbot --nginx обычно дописывает SSL сам).
+# Плейсхолдеры подставляет scripts/setup-ssl.sh: __DOMAIN__, __UPSTREAM__
+
+server {
+  listen 80;
+  listen [::]:80;
+  server_name __DOMAIN__;
+
+  client_max_body_size 10m;
+
+  location ^~ /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+    default_type "text/plain";
+    try_files $uri =404;
+  }
+
+  location / {
+    proxy_pass http://__UPSTREAM__;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # match может идти до 3 минут
+    proxy_connect_timeout 10s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+  }
+}

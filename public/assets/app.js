@@ -1,15 +1,28 @@
 /* Resume UI + vacancy match client */
 
+const CONTACT_SCORE_THRESHOLD = 70;
+
+const CANDIDATE_CONTACTS = {
+  phoneDisplay: "+7 (917) 534-44-35",
+  phoneTel: "+79175344435",
+  telegram: "@alexnazarov89",
+  telegramUrl: "https://t.me/alexnazarov89",
+};
+
 const CHIPS = [
   "Kubernetes", "Argo CD", "GitOps", "Deckhouse",
-  "Helm", "OpenTelemetry", "GitLab CI", "Keycloak", "Vault",
-  "Istio", "Ansible", "AWX", "Yandex Cloud",
+  "Helm", "OpenTelemetry", "VictoriaMetrics", "GitLab CI", "Kaniko",
+  "Keycloak", "Vault", "FreeIPA", "Istio", "Capsule", "Tetragon",
+  "Ansible", "AWX", "Yandex Cloud",
 ];
 
 const EYEBROW_LINES = [
   "Tech Lead DevOps · Kubernetes · GitOps",
+  "Vanilla K8s и Deckhouse",
   "Argo CD · полный GitOps bootstrap",
   "Keycloak · SSO для команд",
+  "Vault · коммунальные секреты",
+  "RBAC · единый доступ по системам",
   "Platform · CI/CD · IDP",
   "Microservices · mesh · observability",
 ];
@@ -109,9 +122,67 @@ async function loadResume() {
       $("#hero-photo-img")?.setAttribute("alt", `Фото: ${h1}`);
     }
     if (role) $("#hero-role").textContent = role;
+    applyContactsFromResume(md);
   } catch (err) {
     el.innerHTML = `<p class="loading">Не удалось загрузить resume.md: ${err.message}</p>`;
   }
+}
+
+function applyContactsFromResume(md) {
+  const phoneMatch = md.match(/\+7[\d\s()\-]{10,}/);
+  const tgMatch = md.match(/Telegram:\s*(@[\w_]+)/i);
+  if (phoneMatch) {
+    const display = phoneMatch[0].replace(/\s+/g, " ").trim();
+    CANDIDATE_CONTACTS.phoneDisplay = display;
+    CANDIDATE_CONTACTS.phoneTel = display.replace(/[^\d+]/g, "");
+  }
+  if (tgMatch) {
+    const handle = tgMatch[1].startsWith("@") ? tgMatch[1] : `@${tgMatch[1]}`;
+    CANDIDATE_CONTACTS.telegram = handle;
+    CANDIDATE_CONTACTS.telegramUrl = `https://t.me/${handle.replace(/^@/, "")}`;
+  }
+  syncContactModalLinks();
+}
+
+function syncContactModalLinks() {
+  const phone = $("#contact-phone");
+  const phoneText = $("#contact-phone-text");
+  const tg = $("#contact-telegram");
+  const tgText = $("#contact-telegram-text");
+  if (phone) phone.href = `tel:${CANDIDATE_CONTACTS.phoneTel}`;
+  if (phoneText) phoneText.textContent = CANDIDATE_CONTACTS.phoneDisplay;
+  if (tg) tg.href = CANDIDATE_CONTACTS.telegramUrl;
+  if (tgText) tgText.textContent = CANDIDATE_CONTACTS.telegram;
+}
+
+function openContactModal(score) {
+  const modal = $("#contact-modal");
+  if (!modal) return;
+  syncContactModalLinks();
+  const scoreEl = $("#contact-modal-score");
+  if (scoreEl) scoreEl.textContent = `${Math.round(score)}%`;
+  modal.hidden = false;
+  document.body.style.overflow = "hidden";
+  modal.querySelector(".contact-modal-close")?.focus();
+}
+
+function closeContactModal() {
+  const modal = $("#contact-modal");
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.style.overflow = "";
+}
+
+function setupContactModal() {
+  const modal = $("#contact-modal");
+  if (!modal) return;
+  syncContactModalLinks();
+  modal.addEventListener("click", (e) => {
+    if (e.target.closest("[data-close-modal]")) closeContactModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.hidden) closeContactModal();
+  });
 }
 
 function setupTabs() {
@@ -129,13 +200,191 @@ function activeTab() {
   return $(".tab.active")?.dataset.tab || "text";
 }
 
-function setBusy(busy, message = "") {
+function setBusy(busy, message = "", kind = "") {
   const btn = $("#btn-match");
   const status = $("#match-status");
-  btn.disabled = busy;
+  btn.disabled = busy || btn.dataset.matchDown === "1";
   btn.querySelector(".btn-spinner").hidden = !busy;
-  btn.querySelector(".btn-label").textContent = busy ? "Сравниваю…" : "Сравнить с резюме";
+  btn.querySelector(".btn-label").textContent = busy ? "Сравниваю…" : "Сравнить с кандидатом";
   status.textContent = message;
+  status.classList.toggle("is-error", kind === "error");
+  status.classList.toggle("is-ok", kind === "ok");
+}
+
+function clearMatchError() {
+  const box = $("#match-error");
+  if (!box) return;
+  box.hidden = true;
+  box.innerHTML = "";
+}
+
+function showMatchError({ title, message, hint, code }) {
+  const box = $("#match-error");
+  const status = $("#match-status");
+  if (status) {
+    status.textContent = message || title || "Сравнение недоступно";
+    status.classList.add("is-error");
+    status.classList.remove("is-ok");
+  }
+  if (!box) return;
+  box.hidden = false;
+  box.innerHTML = `
+    <h3>${escapeHtml(title || "Сравнение недоступно")}</h3>
+    <p>${escapeHtml(message || "")}</p>
+    ${hint ? `<p>${escapeHtml(hint)}</p>` : ""}
+  `;
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function setMatchBadge(state, text) {
+  const badge = $("#match-ready-badge");
+  const label = $("#match-ready-text");
+  if (!badge || !label) return;
+  badge.classList.remove("is-checking", "is-ok", "is-down", "badge-accent");
+  badge.classList.add(state);
+  if (state === "is-ok") badge.classList.add("badge-accent");
+  label.textContent = text;
+}
+
+function setMatchAlert(show, payload = {}) {
+  const alert = $("#match-alert");
+  const btn = $("#btn-match");
+  if (!alert) return;
+  if (!show) {
+    alert.hidden = true;
+    alert.innerHTML = "";
+    if (btn) {
+      btn.dataset.matchDown = "0";
+      const spinner = btn.querySelector(".btn-spinner");
+      if (spinner?.hidden) btn.disabled = false;
+    }
+    return;
+  }
+  alert.hidden = false;
+  alert.innerHTML = `
+    <strong>${escapeHtml(payload.title || "Сравнение временно недоступно")}</strong>
+    ${escapeHtml(payload.message || "")}
+    ${payload.hint ? `<span class="muted">${escapeHtml(payload.hint)}</span>` : ""}
+  `;
+  const lock = payload.lock !== false;
+  if (btn && lock) {
+    btn.dataset.matchDown = "1";
+    btn.disabled = true;
+  }
+}
+
+async function checkMatchReady() {
+  const badge = $("#match-ready-badge");
+  if (badge && !badge.classList.contains("is-ok") && !badge.classList.contains("is-down")) {
+    setMatchBadge("is-checking", "Проверка…");
+  }
+  try {
+    const res = await fetch("/api/health", { cache: "no-store" });
+    if (!res.ok) throw new Error(`health HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.opencodeOk) {
+      setMatchBadge("is-ok", "Готово к сравнению");
+      if (badge) badge.title = "Можно сравнить вакансию с профилем кандидата";
+      setMatchAlert(false);
+      const btn = $("#btn-match");
+      if (btn) {
+        btn.dataset.matchDown = "0";
+        const spinner = btn.querySelector(".btn-spinner");
+        if (spinner?.hidden) btn.disabled = false;
+      }
+      return true;
+    }
+    setMatchBadge("is-down", "Сравнение недоступно");
+    setMatchAlert(true, {
+      title: "Сравнение временно недоступно",
+      message: "Сервис оценки соответствия сейчас не отвечает.",
+      hint: "Резюме кандидата по-прежнему можно читать, скачать или распечатать. Попробуйте сравнение позже.",
+    });
+    return false;
+  } catch {
+    setMatchBadge("is-down", "Нет связи");
+    setMatchAlert(true, {
+      title: "Сервис недоступен",
+      message: "Не удалось проверить готовность сравнения.",
+      hint: "Откройте резюме кандидата ниже или обновите страницу позже.",
+    });
+    return false;
+  }
+}
+
+const MATCH_ERROR_COPY = {
+  opencode_timeout: {
+    title: "Сравнение занимает слишком долго",
+    message: "Не удалось вовремя оценить соответствие вакансии и кандидата.",
+    hint: "Повторите чуть позже. Резюме доступно без сравнения.",
+  },
+  opencode_missing: {
+    title: "Сравнение недоступно",
+    message: "Сервис оценки сейчас выключен.",
+    hint: "Можно изучить резюме кандидата вручную или вернуться позже.",
+  },
+  opencode_auth: {
+    title: "Сравнение недоступно",
+    message: "Сервис оценки временно недоступен.",
+    hint: "Резюме кандидата открыто ниже — его можно скачать или распечатать.",
+  },
+  opencode_model: {
+    title: "Сравнение недоступно",
+    message: "Сервис оценки временно недоступен.",
+    hint: "Попробуйте позже или оцените профиль кандидата по резюме.",
+  },
+  opencode_empty: {
+    title: "Не удалось получить результат",
+    message: "Сервис вернул пустой ответ.",
+    hint: "Повторите сравнение. Резюме кандидата доступно без изменений.",
+  },
+  opencode_bad_json: {
+    title: "Не удалось разобрать результат",
+    message: "Ответ сервиса сравнения пришёл в неожиданном формате.",
+    hint: "Повторите попытку чуть позже.",
+  },
+  opencode_failed: {
+    title: "Сравнение не выполнено",
+    message: "Не удалось оценить соответствие вакансии и кандидата.",
+    hint: "Попробуйте ещё раз. Резюме можно изучить вручную.",
+  },
+  match_failed: {
+    title: "Сравнение не выполнено",
+    message: "Не удалось оценить соответствие вакансии и кандидата.",
+    hint: "Обновите страницу или повторите позже.",
+  },
+  vacancy_url_blocked: {
+    title: "Ссылка недоступна для загрузки",
+    message: "Сайт вакансии не отдал текст (часто anti-bot у hh.ru).",
+    hint: "Откройте вакансию в браузере, скопируйте описание и вставьте во вкладку «Текст».",
+  },
+  vacancy_url_empty: {
+    title: "Текст вакансии не найден",
+    message: "По ссылке не удалось извлечь описание вакансии.",
+    hint: "Вставьте текст вакансии вручную во вкладку «Текст».",
+  },
+  vacancy_url_invalid: {
+    title: "Некорректная ссылка",
+    message: "Указан неверный URL вакансии.",
+    hint: "Проверьте ссылку или вставьте текст вручную.",
+  },
+  network: {
+    title: "Нет связи",
+    message: "Не удалось связаться с сервисом сравнения.",
+    hint: "Проверьте соединение и откройте резюме кандидата ниже.",
+  },
+};
+
+function humanizeMatchFailure(data, httpStatus) {
+  const code = (data && data.code) || `http_${httpStatus || "?"}`;
+  const preset = MATCH_ERROR_COPY[code];
+  if (preset) return { ...preset, code };
+  return {
+    title: "Сравнение не выполнено",
+    message: "Не удалось оценить соответствие вакансии и кандидата.",
+    hint: "Повторите позже или изучите резюме вручную.",
+    code,
+  };
 }
 
 function escapeHtml(s) {
@@ -188,6 +437,9 @@ function renderMatch(data) {
   `;
   animateScoreRing(root.querySelector(".score-ring"), score);
   root.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (score > CONTACT_SCORE_THRESHOLD) {
+    window.setTimeout(() => openContactModal(score), prefersReducedMotion() ? 0 : 700);
+  }
 }
 
 function decorateMarkdown(container) {
@@ -330,7 +582,458 @@ function setupEyebrowRotator() {
   window.setInterval(swap, 4200);
 }
 
-/** Full-page ambient mesh (GitOps sync + Istio north-south / east-west) */
+/** Full-page ambient: Pods / ReplicaSets / Rollouts / VPA (не путать с hero GitOps-spine) */
+function setupAmbientK8sCanvas(canvas) {
+  if (!canvas || prefersReducedMotion()) {
+    canvas?.remove();
+    return () => {};
+  }
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return () => {};
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = 0;
+  let h = 0;
+  let raf = 0;
+  let lastSpawn = 0;
+  const packets = [];
+  const pulse = {};
+
+  // Углы/края — центр под контент
+  const nodes = [
+    // top-left: Deployment → ReplicaSet → Pods
+    { id: "deploy", label: "Deployment", sub: "api", nx: 0.06, ny: 0.07, kind: "deployment" },
+    { id: "rs-api", label: "ReplicaSet", sub: "3/3", nx: 0.14, ny: 0.14, kind: "replicaset" },
+    { id: "pod-a1", label: "Pod", sub: "api-0", nx: 0.24, ny: 0.07, kind: "pod" },
+    { id: "pod-a2", label: "Pod", sub: "api-1", nx: 0.3, ny: 0.14, kind: "pod" },
+    { id: "pod-a3", label: "Pod", sub: "api-2", nx: 0.22, ny: 0.2, kind: "pod" },
+    { id: "svc-api", label: "Service", sub: "ClusterIP", nx: 0.08, ny: 0.26, kind: "service" },
+
+    // top-right: Ingress → Rollout → Pods + HPA
+    { id: "ing", label: "Ingress", sub: "istio", nx: 0.72, ny: 0.06, kind: "ingress" },
+    { id: "rollout", label: "Rollout", sub: "canary 20%", nx: 0.82, ny: 0.12, kind: "rollout" },
+    { id: "pod-stable", label: "Pod", sub: "stable", nx: 0.93, ny: 0.07, kind: "pod" },
+    { id: "pod-canary", label: "Pod", sub: "canary", nx: 0.92, ny: 0.18, kind: "pod" },
+    { id: "hpa", label: "HPA", sub: "2→8", nx: 0.74, ny: 0.22, kind: "hpa" },
+
+    // left edge: Namespace / ConfigMap / Secret
+    { id: "ns", label: "Namespace", sub: "payment-dev", nx: 0.05, ny: 0.48, kind: "namespace" },
+    { id: "cm", label: "ConfigMap", sub: "app-cfg", nx: 0.07, ny: 0.58, kind: "configmap" },
+    { id: "sec", label: "Secret", sub: "vault-csi", nx: 0.06, ny: 0.68, kind: "secret" },
+
+    // right edge: NetworkPolicy + PVC tip
+    { id: "netpol", label: "NetworkPolicy", sub: "deny-all+", nx: 0.93, ny: 0.42, kind: "netpol" },
+    { id: "job", label: "CronJob", sub: "0 */6 * * *", nx: 0.92, ny: 0.55, kind: "cronjob" },
+
+    // bottom-left: VPA + PVC + Pod
+    { id: "vpa", label: "VPA", sub: "cpu↑ mem↓", nx: 0.08, ny: 0.82, kind: "vpa" },
+    { id: "pvc", label: "PVC", sub: "data 20Gi", nx: 0.18, ny: 0.9, kind: "pvc" },
+    { id: "pod-vpa", label: "Pod", sub: "resized", nx: 0.26, ny: 0.82, kind: "pod" },
+
+    // bottom-right: StatefulSet / DaemonSet / Pods
+    { id: "sts", label: "StatefulSet", sub: "pg 2/2", nx: 0.72, ny: 0.82, kind: "statefulset" },
+    { id: "pod-s0", label: "Pod", sub: "pg-0", nx: 0.84, ny: 0.78, kind: "pod" },
+    { id: "pod-s1", label: "Pod", sub: "pg-1", nx: 0.9, ny: 0.86, kind: "pod" },
+    { id: "ds", label: "DaemonSet", sub: "node-agent", nx: 0.78, ny: 0.92, kind: "daemonset" },
+  ];
+
+  const edgePairs = [
+    ["deploy", "rs-api"],
+    ["rs-api", "pod-a1"], ["rs-api", "pod-a2"], ["rs-api", "pod-a3"],
+    ["svc-api", "pod-a1"], ["svc-api", "pod-a2"],
+    ["ing", "rollout"], ["ing", "svc-api"],
+    ["rollout", "pod-stable"], ["rollout", "pod-canary"],
+    ["hpa", "rollout"],
+    ["ns", "cm"], ["ns", "sec"],
+    ["cm", "pod-a2"], ["sec", "pod-a3"],
+    ["vpa", "pod-vpa"], ["pvc", "pod-vpa"],
+    ["sts", "pod-s0"], ["sts", "pod-s1"],
+    ["ds", "pod-s1"],
+    ["netpol", "pod-canary"],
+    ["job", "pod-s0"],
+  ];
+
+  const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  const edges = edgePairs.map(([a, b]) => ({ a: byId[a], b: byId[b] })).filter((e) => e.a && e.b);
+
+  const inset = () => ({
+    x: Math.max(36, w * 0.025),
+    y: Math.max(24, h * 0.035),
+  });
+
+  const pos = (n, now = 0) => {
+    const pad = inset();
+    const driftX = Math.sin(now / 3200 + n.nx * 8) * 5;
+    const driftY = Math.cos(now / 2800 + n.ny * 7) * 4;
+    return {
+      x: pad.x + n.nx * (w - pad.x * 2) + driftX,
+      y: pad.y + n.ny * (h - pad.y * 2) + driftY,
+    };
+  };
+
+  const roundRect = (c, x, y, width, height, radius) => {
+    c.beginPath();
+    c.moveTo(x + radius, y);
+    c.lineTo(x + width - radius, y);
+    c.quadraticCurveTo(x + width, y, x + width, y + radius);
+    c.lineTo(x + width, y + height - radius);
+    c.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    c.lineTo(x + radius, y + height);
+    c.quadraticCurveTo(x, y + height, x, y + height - radius);
+    c.lineTo(x, y + radius);
+    c.quadraticCurveTo(x, y, x + radius, y);
+    c.closePath();
+  };
+
+  const drawHex = (x, y, r, stroke, fill) => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const ang = (Math.PI / 3) * i - Math.PI / 6;
+      const px = x + r * Math.cos(ang);
+      const py = y + r * Math.sin(ang);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+  };
+
+  const box = (x, y, rw, rh, stroke, fill, radius = 7) => {
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1.15;
+    roundRect(ctx, x - rw / 2, y - rh / 2, rw, rh, radius);
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  const drawPod = (x, y, glow) => {
+    drawHex(
+      x, y, 13,
+      `rgba(94, 234, 212, ${0.45 + glow * 0.4})`,
+      `rgba(34, 211, 238, ${0.1 + glow * 0.2})`
+    );
+    ctx.fillStyle = "#34d399";
+    ctx.beginPath();
+    ctx.arc(x - 5.5, y - 5.5, 2, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawReplicaSet = (x, y, glow) => {
+    box(x, y, 90, 34, `rgba(125, 211, 252, ${0.4 + glow * 0.35})`, "rgba(13, 20, 32, 0.75)");
+    for (let i = 0; i < 3; i++) {
+      drawHex(x - 26 + i * 15, y + 8, 4.5, "rgba(94, 234, 212, 0.55)", "rgba(56, 189, 248, 0.12)");
+    }
+  };
+
+  const drawDeployment = (x, y, glow) => {
+    box(x, y, 98, 32, `rgba(56, 189, 248, ${0.45 + glow * 0.3})`, "rgba(10, 22, 36, 0.8)", 6);
+    ctx.strokeStyle = `rgba(56, 189, 248, ${0.25 + glow * 0.2})`;
+    ctx.strokeRect(x - 44, y - 11, 88, 22);
+  };
+
+  const drawRollout = (x, y, glow, now) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.transform(1, 0, -0.16, 1, 0, 0);
+    box(0, 0, 94, 32, `rgba(167, 139, 250, ${0.5 + glow * 0.35})`, "rgba(24, 16, 40, 0.8)");
+    ctx.restore();
+    const prog = 0.2 + 0.15 * Math.sin(now / 900);
+    ctx.fillStyle = "rgba(56, 189, 248, 0.15)";
+    roundRect(ctx, x - 32, y + 8, 64, 3.5, 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(94, 234, 212, 0.7)";
+    roundRect(ctx, x - 32, y + 8, 64 * prog, 3.5, 2);
+    ctx.fill();
+  };
+
+  const drawVpa = (x, y, glow, now) => {
+    box(x, y, 76, 36, `rgba(52, 211, 153, ${0.5 + glow * 0.35})`, "rgba(13, 28, 24, 0.8)");
+    const bob = Math.sin(now / 500) * 2;
+    ctx.strokeStyle = "rgba(94, 234, 212, 0.85)";
+    ctx.fillStyle = "rgba(94, 234, 212, 0.85)";
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(x + 20, y + 3 + bob);
+    ctx.lineTo(x + 20, y - 9 + bob);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 20, y - 9 + bob);
+    ctx.lineTo(x + 16, y - 4 + bob);
+    ctx.lineTo(x + 24, y - 4 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 30, y - 5 - bob);
+    ctx.lineTo(x + 30, y + 7 - bob);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 30, y + 7 - bob);
+    ctx.lineTo(x + 26, y + 2 - bob);
+    ctx.lineTo(x + 34, y + 2 - bob);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  const drawService = (x, y, glow) => {
+    // oval / pill = Service
+    ctx.beginPath();
+    ctx.ellipse(x, y, 42, 15, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(12, 24, 40, 0.8)";
+    ctx.fill();
+    ctx.strokeStyle = `rgba(96, 165, 250, ${0.5 + glow * 0.3})`;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  };
+
+  const drawIngress = (x, y, glow) => {
+    // gateway trapezoid
+    ctx.beginPath();
+    ctx.moveTo(x - 40, y + 12);
+    ctx.lineTo(x - 28, y - 12);
+    ctx.lineTo(x + 28, y - 12);
+    ctx.lineTo(x + 40, y + 12);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(30, 20, 48, 0.8)";
+    ctx.fill();
+    ctx.strokeStyle = `rgba(192, 132, 252, ${0.55 + glow * 0.3})`;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  };
+
+  const drawHpa = (x, y, glow, now) => {
+    box(x, y, 72, 30, `rgba(251, 191, 36, ${0.45 + glow * 0.3})`, "rgba(32, 26, 12, 0.8)");
+    const t = (Math.sin(now / 700) + 1) / 2;
+    ctx.fillStyle = "rgba(251, 191, 36, 0.7)";
+    roundRect(ctx, x - 24, y + 6, 12 + t * 28, 3, 1.5);
+    ctx.fill();
+  };
+
+  const drawStatefulSet = (x, y, glow) => {
+    box(x, y, 96, 34, `rgba(45, 212, 191, ${0.45 + glow * 0.3})`, "rgba(10, 28, 28, 0.8)");
+    for (let i = 0; i < 2; i++) {
+      ctx.strokeStyle = "rgba(45, 212, 191, 0.5)";
+      ctx.strokeRect(x - 30 + i * 28, y + 4, 18, 8);
+    }
+  };
+
+  const drawDaemonSet = (x, y, glow) => {
+    box(x, y, 100, 30, `rgba(248, 113, 113, ${0.4 + glow * 0.3})`, "rgba(36, 14, 18, 0.8)");
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = "rgba(248, 113, 113, 0.55)";
+      ctx.beginPath();
+      ctx.arc(x - 30 + i * 20, y + 7, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+
+  const drawCronJob = (x, y, glow, now) => {
+    box(x, y, 100, 30, `rgba(129, 140, 248, ${0.45 + glow * 0.3})`, "rgba(18, 18, 40, 0.8)");
+    // clock tick
+    const ang = (now / 800) % (Math.PI * 2);
+    ctx.strokeStyle = "rgba(165, 180, 252, 0.85)";
+    ctx.beginPath();
+    ctx.arc(x + 34, y, 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 34, y);
+    ctx.lineTo(x + 34 + Math.cos(ang) * 5, y + Math.sin(ang) * 5);
+    ctx.stroke();
+  };
+
+  const drawConfigMap = (x, y, glow) => {
+    box(x, y, 88, 28, `rgba(148, 163, 184, ${0.45 + glow * 0.25})`, "rgba(20, 24, 32, 0.8)");
+    ctx.fillStyle = "rgba(148, 163, 184, 0.5)";
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(x - 28, y - 2 + i * 4, 36 - i * 6, 1.5);
+    }
+  };
+
+  const drawSecret = (x, y, glow) => {
+    box(x, y, 86, 28, `rgba(251, 113, 133, ${0.45 + glow * 0.3})`, "rgba(36, 14, 22, 0.8)");
+    // lock
+    ctx.strokeStyle = "rgba(251, 113, 133, 0.8)";
+    ctx.strokeRect(x + 26, y - 1, 8, 7);
+    ctx.beginPath();
+    ctx.arc(x + 30, y - 3, 3.5, Math.PI, 0);
+    ctx.stroke();
+  };
+
+  const drawPvc = (x, y, glow) => {
+    // cylinder-ish storage
+    ctx.beginPath();
+    ctx.ellipse(x, y - 8, 28, 7, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(15, 30, 40, 0.85)";
+    ctx.fill();
+    ctx.strokeStyle = `rgba(56, 189, 248, ${0.45 + glow * 0.3})`;
+    ctx.stroke();
+    ctx.fillRect(x - 28, y - 8, 56, 14);
+    ctx.beginPath();
+    ctx.ellipse(x, y + 6, 28, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  const drawNamespace = (x, y, glow) => {
+    box(x, y, 108, 28, `rgba(94, 234, 212, ${0.35 + glow * 0.25})`, "rgba(8, 20, 24, 0.55)", 14);
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = `rgba(94, 234, 212, ${0.35 + glow * 0.2})`;
+    roundRect(ctx, x - 50, y - 10, 100, 20, 10);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+
+  const drawNetPol = (x, y, glow) => {
+    box(x, y, 108, 28, `rgba(251, 146, 60, ${0.45 + glow * 0.3})`, "rgba(36, 22, 10, 0.8)");
+    ctx.strokeStyle = "rgba(251, 146, 60, 0.7)";
+    ctx.beginPath();
+    ctx.moveTo(x + 28, y - 6);
+    ctx.lineTo(x + 38, y + 6);
+    ctx.moveTo(x + 38, y - 6);
+    ctx.lineTo(x + 28, y + 6);
+    ctx.stroke();
+  };
+
+  const drawNode = (n, now) => {
+    const { x, y } = pos(n, now);
+    const glow = Math.max(0, ((pulse[n.id] || 0) - now) / 700);
+
+    switch (n.kind) {
+      case "pod": drawPod(x, y, glow); break;
+      case "replicaset": drawReplicaSet(x, y, glow); break;
+      case "deployment": drawDeployment(x, y, glow); break;
+      case "rollout": drawRollout(x, y, glow, now); break;
+      case "vpa": drawVpa(x, y, glow, now); break;
+      case "service": drawService(x, y, glow); break;
+      case "ingress": drawIngress(x, y, glow); break;
+      case "hpa": drawHpa(x, y, glow, now); break;
+      case "statefulset": drawStatefulSet(x, y, glow); break;
+      case "daemonset": drawDaemonSet(x, y, glow); break;
+      case "cronjob": drawCronJob(x, y, glow, now); break;
+      case "configmap": drawConfigMap(x, y, glow); break;
+      case "secret": drawSecret(x, y, glow); break;
+      case "pvc": drawPvc(x, y, glow); break;
+      case "namespace": drawNamespace(x, y, glow); break;
+      case "netpol": drawNetPol(x, y, glow); break;
+      default: drawPod(x, y, glow);
+    }
+
+    ctx.font = '8.5px "IBM Plex Mono", monospace';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(232, 238, 247, 0.9)";
+    const labelY = n.kind === "pod" ? y : (n.kind === "pvc" ? y - 2 : y - 5);
+    ctx.fillText(n.label, x, labelY);
+    if (n.sub) {
+      ctx.fillStyle = "rgba(148, 163, 184, 0.8)";
+      ctx.font = '7.5px "IBM Plex Mono", monospace';
+      const subY = n.kind === "pod" ? y + 19 : (n.kind === "vpa" ? y + 5 : y + 6);
+      const subX = n.kind === "vpa" ? x - 6 : x;
+      ctx.fillText(n.sub, subX, subY);
+    }
+  };
+
+  const hueFor = (kind) => ({
+    rollout: 265,
+    ingress: 280,
+    vpa: 155,
+    hpa: 42,
+    replicaset: 198,
+    deployment: 200,
+    service: 210,
+    statefulset: 168,
+    daemonset: 5,
+    cronjob: 230,
+    secret: 350,
+    configmap: 220,
+    pvc: 195,
+    namespace: 170,
+    netpol: 25,
+  }[kind] || 172);
+
+  const spawnPacket = () => {
+    const edge = edges[Math.floor(Math.random() * edges.length)];
+    if (!edge) return;
+    packets.push({
+      edge,
+      t: 0,
+      speed: 0.0032 + Math.random() * 0.0045,
+      hue: hueFor(edge.a.kind),
+    });
+  };
+
+  const resize = () => {
+    const rect = canvas.getBoundingClientRect();
+    w = Math.max(1, rect.width);
+    h = Math.max(1, rect.height);
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
+  const draw = (now) => {
+    ctx.clearRect(0, 0, w, h);
+
+    for (const { a, b } of edges) {
+      const pa = pos(a, now);
+      const pb = pos(b, now);
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.12)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 7]);
+      ctx.beginPath();
+      ctx.moveTo(pa.x, pa.y);
+      ctx.lineTo(pb.x, pb.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    if (now - lastSpawn > 380) {
+      spawnPacket();
+      lastSpawn = now;
+    }
+
+    for (let i = packets.length - 1; i >= 0; i--) {
+      const pkt = packets[i];
+      pkt.t += pkt.speed;
+      const pa = pos(pkt.edge.a, now);
+      const pb = pos(pkt.edge.b, now);
+      const t = Math.min(1, pkt.t);
+      const x = pa.x + (pb.x - pa.x) * t;
+      const y = pa.y + (pb.y - pa.y) * t;
+      const fade = 1 - Math.abs(t - 0.5) * 1.5;
+      ctx.fillStyle = `hsla(${pkt.hue}, 80%, 65%, ${0.7 * Math.max(0.15, fade)})`;
+      ctx.beginPath();
+      ctx.arc(x, y, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+      if (pkt.t >= 1) {
+        pulse[pkt.edge.b.id] = now + 700;
+        packets.splice(i, 1);
+      }
+    }
+
+    for (const n of nodes) drawNode(n, now);
+    raf = requestAnimationFrame(draw);
+  };
+
+  const onResize = () => resize();
+  window.addEventListener("resize", onResize, { passive: true });
+  resize();
+  raf = requestAnimationFrame(draw);
+
+  return () => {
+    cancelAnimationFrame(raf);
+    window.removeEventListener("resize", onResize);
+  };
+}
+
+/** Hero compact spine: Git → GitLab → Argo CD → Istio → pods */
 function setupMeshCanvas(canvas, opts = {}) {
   if (!canvas || prefersReducedMotion()) {
     canvas?.remove();
@@ -345,46 +1048,27 @@ function setupMeshCanvas(canvas, opts = {}) {
   let w = 0;
   let h = 0;
 
-  /**
-   * Compact = spring-ci / GitOps spine из templates:
-   * Git → GitLab CI → Argo CD → Istio → api-svc → keycloak
-   * Full = ambient corner mesh на фоне страницы.
-   */
-  const nodes = compact
-    ? [
-        { id: "git", label: "Git", nx: 0.04, ny: 0.5, kind: "ci" },
-        { id: "ci", label: "GitLab", nx: 0.2, ny: 0.5, kind: "ci" },
-        { id: "argo", label: "Argo CD", nx: 0.4, ny: 0.5, kind: "gitops" },
-        { id: "istio", label: "Istio", nx: 0.58, ny: 0.5, kind: "mesh" },
-        { id: "api", label: "api-svc", nx: 0.76, ny: 0.5, kind: "pod" },
-        { id: "id", label: "keycloak", nx: 0.94, ny: 0.5, kind: "pod" },
-      ]
-    : [
-        { id: "git", label: "Git", nx: 0.06, ny: 0.14, kind: "ci" },
-        { id: "ci", label: "GitLab CI", nx: 0.2, ny: 0.1, kind: "ci" },
-        { id: "reg", label: "Registry", nx: 0.34, ny: 0.16, kind: "ci" },
-        { id: "argo", label: "Argo CD", nx: 0.48, ny: 0.12, kind: "gitops" },
-        { id: "api", label: "api-svc", nx: 0.62, ny: 0.22, kind: "pod" },
-        { id: "wrk", label: "worker", nx: 0.76, ny: 0.1, kind: "pod" },
-        { id: "istio", label: "Istio GW", nx: 0.72, ny: 0.28, kind: "mesh" },
-        { id: "id", label: "keycloak", nx: 0.12, ny: 0.88, kind: "pod" },
-        { id: "otel", label: "OTel", nx: 0.88, ny: 0.86, kind: "pod" },
-      ];
+  if (!compact) {
+    // фон страницы — отдельная K8s-анимация
+    return setupAmbientK8sCanvas(canvas);
+  }
 
-  const edgePairs = compact
-    ? [
-        ["git", "ci"],
-        ["ci", "argo"],
-        ["argo", "istio"],
-        ["istio", "api"],
-        ["api", "id"],
-      ]
-    : [
-        ["git", "ci"], ["ci", "reg"], ["reg", "argo"],
-        ["argo", "api"], ["argo", "wrk"],
-        ["istio", "api"], ["istio", "id"], ["istio", "wrk"],
-        ["api", "wrk"], ["api", "otel"], ["wrk", "otel"],
-      ];
+  const nodes = [
+    { id: "git", label: "Git", nx: 0.04, ny: 0.5, kind: "ci" },
+    { id: "ci", label: "GitLab", nx: 0.2, ny: 0.5, kind: "ci" },
+    { id: "argo", label: "Argo CD", nx: 0.4, ny: 0.5, kind: "gitops" },
+    { id: "istio", label: "Istio", nx: 0.58, ny: 0.5, kind: "mesh" },
+    { id: "api", label: "api-svc", nx: 0.76, ny: 0.5, kind: "pod" },
+    { id: "id", label: "keycloak", nx: 0.94, ny: 0.5, kind: "pod" },
+  ];
+
+  const edgePairs = [
+    ["git", "ci"],
+    ["ci", "argo"],
+    ["argo", "istio"],
+    ["istio", "api"],
+    ["api", "id"],
+  ];
 
   const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
   const edges = edgePairs.map(([a, b]) => ({ a: byId[a], b: byId[b] })).filter((e) => e.a && e.b);
@@ -642,7 +1326,7 @@ function setupMeshCanvas(canvas, opts = {}) {
 }
 
 function setupDevOpsVisuals() {
-  setupMeshCanvas($("#mesh-canvas"), { compact: false });
+  setupAmbientK8sCanvas($("#mesh-canvas"));
   setupMeshCanvas($("#hero-mesh-canvas"), { compact: true });
   setupPipelineStages();
 }
@@ -720,39 +1404,84 @@ function setupPdfDropzone() {
 
 async function runMatch() {
   const tab = activeTab();
-  const status = $("#match-status");
   $("#match-result").hidden = true;
+  clearMatchError();
+
+  const online = await checkMatchReady();
+  if (!online) {
+    setBusy(false, "Сравнение сейчас недоступно", "error");
+    return;
+  }
+
+  const ctrl = new AbortController();
+  const clientTimeoutMs = 190_000;
+  const timer = window.setTimeout(() => ctrl.abort(), clientTimeoutMs);
 
   try {
-    setBusy(true, "OpenCode анализирует соответствие…");
+    setBusy(true, "Сравниваю вакансию с профилем кандидата…");
 
     let res;
     if (tab === "pdf") {
       const file = $("#vacancy-pdf").files?.[0];
-      if (!file) throw new Error("Выберите PDF");
+      if (!file) throw Object.assign(new Error("Выберите PDF"), { code: "validation" });
       const fd = new FormData();
       fd.append("pdf", file);
-      res = await fetch("/api/match", { method: "POST", body: fd });
+      res = await fetch("/api/match", { method: "POST", body: fd, signal: ctrl.signal });
     } else {
       const body = tab === "url"
         ? { url: $("#vacancy-url").value.trim() }
         : { text: $("#vacancy-text").value.trim() };
-      if (tab === "url" && !body.url) throw new Error("Укажите URL");
-      if (tab === "text" && !body.text) throw new Error("Вставьте текст вакансии");
+      if (tab === "url" && !body.url) throw Object.assign(new Error("Укажите URL"), { code: "validation" });
+      if (tab === "text" && !body.text) throw Object.assign(new Error("Вставьте текст вакансии"), { code: "validation" });
       res = await fetch("/api/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: ctrl.signal,
       });
     }
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    let data = {};
+    try {
+      data = await res.json();
+    } catch {
+      data = { code: "match_failed", error: `HTTP ${res.status}` };
+    }
+
+    if (!res.ok) {
+      const info = humanizeMatchFailure(data, res.status);
+      setBusy(false, info.message, "error");
+      showMatchError(info);
+      if (["opencode_missing", "opencode_auth", "opencode_model"].includes(info.code)) {
+        setMatchBadge("is-down", "Сравнение недоступно");
+        setMatchAlert(true, { ...info, lock: true });
+      } else if (["opencode_timeout", "opencode_failed", "opencode_empty", "opencode_bad_json"].includes(info.code)) {
+        setMatchBadge("is-down", "Сбой сравнения");
+        setMatchAlert(true, { ...info, lock: false });
+      }
+      return;
+    }
+
     renderMatch(data);
-    setBusy(false, `Готово · model: ${data.model || "opencode"} · ${data.elapsedMs || "?"}ms`);
+    const ms = data.elapsedMs ? ` · ${data.elapsedMs}ms` : "";
+    setBusy(false, `Готово: соответствие кандидата и вакансии${ms}`, "ok");
   } catch (err) {
-    setBusy(false, "");
-    status.textContent = `Ошибка: ${err.message}`;
+    if (err?.code === "validation") {
+      setBusy(false, err.message, "error");
+      return;
+    }
+    if (err?.name === "AbortError") {
+      const info = { ...MATCH_ERROR_COPY.opencode_timeout, code: "opencode_timeout" };
+      setBusy(false, info.message, "error");
+      showMatchError(info);
+      setMatchBadge("is-down", "Сбой сравнения");
+      return;
+    }
+    const info = { ...MATCH_ERROR_COPY.network, code: "network" };
+    setBusy(false, info.message, "error");
+    showMatchError(info);
+  } finally {
+    window.clearTimeout(timer);
   }
 }
 
@@ -766,8 +1495,41 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEyebrowRotator();
   setupDevOpsVisuals();
   setupPdfDropzone();
+  setupContactModal();
   loadPhoto();
   loadResume();
+  checkMatchReady();
+  window.setInterval(checkMatchReady, 60_000);
   $("#btn-match").addEventListener("click", runMatch);
-  $("#btn-print").addEventListener("click", () => window.print());
+  $("#btn-download-pdf")?.addEventListener("click", async () => {
+    const btn = $("#btn-download-pdf");
+    const prev = btn?.textContent;
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Готовим PDF…";
+      }
+      const res = await fetch("/api/resume.pdf");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Nazarov-Alexey-DevOps.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Не удалось скачать PDF: ${err.message || err}`);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prev || "Скачать PDF";
+      }
+    }
+  });
 });

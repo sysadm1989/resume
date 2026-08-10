@@ -11,7 +11,8 @@
 ## Профиль
 
 Руководитель направления DevOps и контейнеризации с фокусом на **Kubernetes**, **GitOps**, **CI/CD** и платформенные сервисы.
-Строю и сопровождаю коммунальную инфраструктуру для продуктовых команд: кластеры, **Keycloak** (identity для команд), артефакты, автоматизацию и IDP.
+Строю и сопровождаю коммунальную инфраструктуру для продуктовых команд: кластеры (**ванильный Kubernetes** и **Deckhouse**), **Keycloak** (identity), **Vault** (секреты), артефакты, автоматизацию и IDP.
+Единый **RBAC** по платформенным системам: роли и доступы согласованы между Keycloak, Kubernetes, GitLab, Vault, AWX и смежными сервисами.
 
 Сильные стороны: **внедрение GitOps-платформы под ключ**, наставничество инженеров, единые стандарты delivery, отказоустойчивые архитектуры, IaC и безопасный доступ через merge request.
 
@@ -20,29 +21,36 @@
 ## Ключевые навыки
 
 ### Kubernetes & Platform
-- Kubernetes (bare-metal и on-premise): Cilium, Istio, Falco, Kyverno; платформенный слой **Deckhouse**
-- **Helm**: платформенные и продуктовые чарты, values по окружениям, delivery через GitOps
-- GitOps: Argo CD; внедрение GitOps-контура под ключ (кластер → delivery → политики)
-- Observability: **OpenTelemetry** (коллекторы, трассировка и метрики для сервисов платформы)
+- **Kubernetes** (ванильный и bare-metal / on-premise): Cilium, Istio, Falco/Kyverno, MetalLB, cert-manager
+- **Deckhouse**: bootstrap и эксплуатация платформенного кластера, ModuleConfig, Project/AppProject, Secrets Store CSI, admission-policy-engine, operator-trivy, SDS/replicated volume
+- Tenancy и политики: **Capsule**, Kyverno; runtime security
+- **Helm**: платформенные и продуктовые чарты, values по окружениям, canary (Istio VS/DR), **VPA**
+- GitOps: Argo CD (AppProjects, bootstrap Applications)
+- Observability: **OpenTelemetry**, **VictoriaMetrics** (vmagent/vmalert/vmauth), **VictoriaLogs**, Vector, Grafana, Alertmanager
+- Networking / TLS: Istio, **MetalLB**, **cert-manager**, ExternalDNS
+- Storage: **Linstor**, Local, S3
 - Canary deploy: Istio в Kubernetes, nginx+lua на серверах
-- Platform-сервисы для команд: **Keycloak** (SSO/RBAC), Vault, Nexus
+- Platform-сервисы для команд: **Keycloak** (SSO/RBAC), **Vault** (коммунальный secrets + CSI в поды), Nexus, AWX, Sentry
+- Секреты в workloads: Deckhouse **Secrets Store CSI** / External Secrets → Vault KV
+- **RBAC** end-to-end: Keycloak / FreeIPA / LDAP / OIDC → Kubernetes, GitLab, Vault, AWX
 - Опыт написания оператора для Kubernetes
 
 ### CI/CD & Automation
-- GitLab / GitLab CI, единые стандарты разработки и процессов CI/CD
-- Ansible / AWX, IaC
-- Python / Django, Bash; интеграция REST API
-- Puppet Enterprise (исторический опыт)
+- GitLab / **GitLab CI Components**: единые шаблоны (prepare → test → **Kaniko** → SCA → deploy Argo CD)
+- Сборка образов Kaniko; публикация в Nexus / Yandex Container Registry
+- Ansible / AWX, IaC; **Vault IaC** (KV mounts, policies, FreeIPA/LDAP/OIDC groups из state YAML)
+- HA PostgreSQL: **Patroni** + etcd + PostgreSQL (Ansible)
+- Python / Django (IDP: git flow, релиз-манифест), Bash; интеграция REST API
 
 ### Cloud & Infra
-- Yandex Cloud
-- Linux (CentOS / Ubuntu / RHEL-подобные), Docker
-- Виртуализация, СХД, мониторинг (Zabbix) — сильный ops-бэкграунд
+- Yandex Cloud: Container Registry, **Object Storage** (IaC бакетов под сервисы платформы)
+- Linux (CentOS / Ubuntu / RHEL-подобные), **Docker**, **Podman** (rootful / rootless)
+- Виртуализация и bare-metal
 
 ### Практики
-- Ролевой доступ в сервисы через merge request
+- Единый **RBAC** и ролевой доступ в сервисы через merge request
 - Проектирование HA / резервирование
-- Развитие IDP (портал разработчика)
+- Развитие IDP (портал разработчика): git flow, релиз-манифест
 - Наставничество и руководство командой
 
 ---
@@ -53,26 +61,34 @@
 **Март 2025 — н.в.** · Москва
 
 - Внедрение **полной DevOps/GitOps-платформы под ключ**: Kubernetes, CI/CD, IaC, коммунальные сервисы и единые стандарты для продуктовых команд.
-- **Keycloak** как коммунальный сервис identity: SSO, роли и доступ продуктовых команд к платформе и инструментам.
+- **Keycloak** как коммунальный сервис identity: SSO, роли и доступ продуктовых команд к платформе и инструментам; **realm как сервис** с LDAP и Kerberos.
+- **Vault** как коммунальный сервис секретов: KV, политики, выдача credentials; интеграция в поды через Deckhouse Secrets Store CSI.
+- **Vault IaC**: декларативный доступ (state YAML) → policies + FreeIPA/LDAP/OIDC groups, без ручной настройки в UI.
+- Единый **RBAC по всем системам** платформы: Keycloak / FreeIPA → Kubernetes, GitLab, Vault, AWX.
+- Единые **GitLab CI Components** для команд: prepare → test → Kaniko → SCA → deploy в Argo CD.
 - Наставничество и руководство командой инженеров: обучение Kubernetes, CI/CD, IaC.
-- Развитие и сопровождение коммунальных сервисов: Kubernetes, Vault, Nexus, AWX, Keycloak, GitLab.
-- Ролевой доступ в сервисы: управление через merge request.
-- IaC на Ansible, CI/CD на GitLab, GitOps на Argo CD (деплой и конфигурация из Git, ревью через MR).
-- **Helm**-чарты для коммунальных сервисов; bootstrap и эксплуатация кластеров на **Deckhouse**.
-- **OpenTelemetry** в платформенном контуре observability.
-- Kubernetes bare-metal (Cilium, Istio, Falco, Kyverno и др.).
-- Canary deploy (Istio в Kubernetes, nginx+lua на серверах).
-- Разработка и сопровождение IDP (портал разработчика).
+- Развитие и сопровождение коммунальных сервисов: Kubernetes, Vault, Nexus, AWX, Keycloak, GitLab, Sentry.
+- Observability-контур: OpenTelemetry, VictoriaMetrics, VictoriaLogs, Vector, Grafana, Alertmanager.
+- IaC на Ansible (в т.ч. HA PostgreSQL на Patroni), CI/CD на GitLab, GitOps на Argo CD.
+- **Helm**-чарты для коммунальных и продуктовых сервисов (canary, VPA); GitOps на Argo CD.
+- **Deckhouse**: bootstrap кластеров, модули платформы (Secrets Store CSI, admission-policy, trivy, SDS), эксплуатация «под ключ».
+- Опыт и **ванильного Kubernetes** (bare-metal: Cilium, Istio и др.), и платформенного контура на Deckhouse.
+- Addons: **Falco**, **MetalLB**, **cert-manager**, External Secrets, Reloader, ExternalDNS.
+- Storage: **Linstor**; security: Kyverno, **operator-trivy**.
+- Canary deploy (Istio VS/DR, nginx+lua на серверах).
+- Разработка и сопровождение IDP (портал разработчика на Django + Keycloak OIDC): git flow, релиз-манифест для команд.
 - Проектирование отказоустойчивых архитектур с высокой доступностью и резервированием.
-- Администрирование Yandex Cloud.
+- Администрирование Yandex Cloud: Container Registry, **Object Storage** (бакеты под платёжные сервисы, IaC).
 
 ### Начальник отдела infra devops — АО «НСПК»
 **Январь 2016 — Март 2025** · Москва · [nspk.ru](https://www.nspk.ru)
 
 - Руководство отделом infra devops: планирование, приоритизация, развитие платформы и автоматизации.
-- Развитие и сопровождение ванильного Kubernetes on-premise для внутренних продуктов и сервисов.
+- Развитие и сопровождение **ванильного Kubernetes** on-premise: **Capsule**, **cert-manager**, **Tetragon**, **Kyverno**, **Linstor**; собственные шаблоны управления кластером и коммунальными компонентами.
+- **Namespace как сервис** для продуктовых команд.
+- Деплой и обновление кластера через **Ansible**.
 - Разработка и сопровождение внутренних систем автоматизации (Python / Django).
-- Администрирование и развитие IaC-контура: GitLab, Nexus, Vault, AWX; единые практики delivery для команд.
+- Коммунальные сервисы для команд: **AWX**, **Vault**, **Nexus**; единая ролевая модель
 
 ### Системный администратор — ООО «Внешпромбанк»
 **Сентябрь 2011 — Декабрь 2015** · Москва
@@ -88,18 +104,21 @@
 
 ## Дополнительно обо мне
 
-- Выстроил и ввёл в эксплуатацию **полную платформу DevOps**: Kubernetes, GitOps (Argo CD), CI/CD, IaC, секреты, артефакты, **Keycloak для команд**, IDP — как единый контур для продуктовых команд, а не набор разрозненных инструментов.
-- Внедряю **GitOps под ключ**: Deckhouse/bootstrap кластера, Argo CD, **Helm**-шаблоны приложений, политики и изменения через merge request.
+- Выстроил и ввёл в эксплуатацию **полную платформу DevOps**: Kubernetes, GitOps (Argo CD), **GitLab CI Components** + Kaniko, IaC, **Vault** (+ CSI в поды), **Keycloak/FreeIPA**, observability (OTel / VictoriaMetrics / VictoriaLogs), IDP — единый контур для продуктовых команд.
+- Внедряю **GitOps под ключ**: bootstrap кластера (**Deckhouse** или ванильный Kubernetes), Argo CD, **Helm**-шаблоны приложений (canary, VPA), политики и изменения через merge request.
 - Опыт разработки на Django и интеграции REST API; написание оператора для Kubernetes.
-- Формирование и закрепление единого стандарта разработки и CI/CD: onboarding команд на платформу, документация, self-service через IDP.
-- Сильный ops-фундамент: ЦОД и инфраструктура «с нуля», HA, мониторинг, безопасность и эксплуатация в регулируемых средах.
+- Формирование и закрепление единого стандарта разработки и CI/CD: onboarding команд на платформу, документация, self-service через IDP (git flow, релиз-манифест).
+- Сильный ops-фундамент: ЦОД и инфраструктура «с нуля», HA (в т.ч. Patroni), мониторинг, безопасность и эксплуатация в регулируемых средах.
 
 ---
 
 ## Стек (кратко)
 
-`Kubernetes` `Deckhouse` `Helm` `Istio` `Cilium` `Argo CD` `GitLab CI` `OpenTelemetry`  
-`Ansible` `AWX` `Vault` `Keycloak` `Nexus` `Yandex Cloud` `Docker` `Linux` `Python` `Django` `Bash`
+`Kubernetes` `Deckhouse` `Helm` `Istio` `Cilium` `Capsule` `Tetragon` `Argo CD`  
+`GitLab CI` `Kaniko` `OpenTelemetry` `VictoriaMetrics` `VictoriaLogs` `Vector`  
+`Ansible` `AWX` `Vault` `Keycloak` `FreeIPA` `Nexus` `Patroni` `Sentry`  
+`MetalLB` `cert-manager` `Linstor` `External Secrets` `Yandex Cloud`  
+`Docker` `Podman` `Linux` `Python` `Django` `Bash`
 
 ---
 
@@ -127,4 +146,4 @@
 ## Как со мной работать
 
 Предпочитаю GitOps, IaC и ревьюемые изменения через MR.  
-Для оценки вакансии приложите текст, PDF или ссылку — на сайте есть **Match with OpenCode**.
+Для оценки вакансии приложите текст, PDF или ссылку — на сайте есть сравнение с профилем кандидата.
