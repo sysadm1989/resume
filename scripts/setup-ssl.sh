@@ -89,7 +89,6 @@ if [[ "$ACME_MODE" == "dns" ]]; then
   run certbot certonly \
     --manual \
     --preferred-challenges dns \
-    --manual-public-ip-logging-ok \
     -d "$DOMAIN" \
     --email "$EMAIL" \
     --agree-tos \
