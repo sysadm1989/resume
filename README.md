@@ -44,12 +44,16 @@ PUSH=0 ./scripts/docker-push.sh
 
 ## Деплой на сервере (root)
 
+ОС: **Ubuntu 26.04** (resolute) и совместимые 22.04/24.04. DNS A/AAAA → сервер. Порт **8787 наружу не открывать**.
+
 ### 1. Пакеты
 
 ```bash
 apt-get update -y
 apt-get install -y docker.io docker-compose-v2 git curl
+# Ubuntu 26: certbot-nginx из universe (setup-ssl.sh сам включит при необходимости)
 systemctl enable --now docker
+docker compose version
 ```
 
 ### 2. Код (для compose, .env, SSL, content)
