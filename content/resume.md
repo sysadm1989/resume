@@ -3,7 +3,7 @@
 **Tech Lead — DevOps / Platform Engineer** · Kubernetes · GitOps · Helm · CI/CD
 
 Москва, м. Преображенская площадь · на месте / гибрид · редкие командировки  
-📧 sysadm1989@gmail.com · 📱 +7 (917) 534-44-35 · 💬 Telegram: @alexnazarov89  
+📧 sysadm1989@gmail.com · 📱 +7 (917) 534-44-35 · 💬 Telegram: @alexnazarov89 · [Habr](https://habr.com/ru/users/sysadm1989/) · [LinkedIn](https://ru.linkedin.com/in/aleksey-nazarov-451593113)  
 Гражданство: РФ · опыт: 17+ лет
 
 ---
@@ -140,6 +140,14 @@
 
 - **2019** — Инвента / НСПК: RH300, RH342, RH442; RHCSA
 - **2010** — MCP, MCSA (Windows Server 2003); комплексная защита КИ; АПКШ «Континент»
+
+---
+
+## Публикации и выступления
+
+- **2023** — [Kubernetes в Мир Plat.Form](https://www.youtube.com/watch?v=HZXz5guN6R0) — TechTalk, HighLoad++ 2023
+- **2022** — [Kubernetes в НСПК](https://habr.com/ru/companies/nspk/articles/668578/) — Habr
+- **2020** — [Как мы автоматизировали весь жизненный цикл серверов](https://habr.com/ru/companies/nspk/articles/511062/) — Habr
 
 ---
 
