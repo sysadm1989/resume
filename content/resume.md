@@ -28,10 +28,11 @@
 - GitOps: Argo CD (AppProjects, bootstrap Applications)
 - Observability: **OpenTelemetry**, **VictoriaMetrics** (vmagent/vmalert/vmauth), **VictoriaLogs**, Vector, Grafana, Alertmanager
 - Networking / TLS: Istio, **MetalLB**, **cert-manager**, ExternalDNS, **PowerDNS**
-- Storage: **Linstor**, Local, S3
+- Storage: **Linstor**, Local, S3, **SeaweedFS**
 - Canary deploy: Istio в Kubernetes, nginx+lua на серверах
 - Platform-сервисы для команд: **Keycloak** (SSO/RBAC), **Vault** (коммунальный secrets + CSI в поды), Nexus, AWX, Sentry
 - DNS: настройка и администрирование **PowerDNS** (зоны, записи, интеграция с ExternalDNS)
+- Object storage: настройка и администрирование **SeaweedFS** (S3 API, тома, репликация, эксплуатация)
 - Векторная БД: настройка и администрирование **Qdrant** (коллекции, персистентность, бэкапы, доступ)
 - Секреты в workloads: Deckhouse **Secrets Store CSI** / External Secrets → Vault KV
 - **RBAC** end-to-end: Keycloak / FreeIPA / LDAP / OIDC → Kubernetes, GitLab, Vault, AWX
@@ -71,6 +72,7 @@
 - Наставничество и руководство командой инженеров: обучение Kubernetes, CI/CD, IaC.
 - Развитие и сопровождение коммунальных сервисов: Kubernetes, Vault, Nexus, AWX, Keycloak, GitLab, Sentry.
 - Настройка и администрирование **Qdrant** (векторная БД): развёртывание, коллекции, персистентность, бэкапы и эксплуатация как платформенного сервиса.
+- Настройка и администрирование **SeaweedFS**: S3-совместимое object storage, тома и репликация, эксплуатация как платформенного сервиса.
 - Настройка и администрирование **PowerDNS**: зоны и записи, интеграция с Kubernetes через ExternalDNS.
 - Observability-контур: OpenTelemetry, VictoriaMetrics, VictoriaLogs, Vector, Grafana, Alertmanager.
 - IaC на Ansible (в т.ч. HA PostgreSQL на Patroni), CI/CD на GitLab, GitOps на Argo CD.
@@ -122,7 +124,7 @@
 `Kubernetes` `Deckhouse` `Helm` `Istio` `Cilium` `Capsule` `Tetragon` `Argo CD`  
 `GitLab CI` `Kaniko` `OpenTelemetry` `VictoriaMetrics` `VictoriaLogs` `Vector`  
 `Ansible` `AWX` `Vault` `Keycloak` `FreeIPA` `Nexus` `Patroni` `Sentry`  
-`Qdrant` `PowerDNS` `MetalLB` `cert-manager` `Linstor` `External Secrets` `Yandex Cloud`  
+`Qdrant` `SeaweedFS` `PowerDNS` `MetalLB` `cert-manager` `Linstor` `External Secrets` `Yandex Cloud`  
 `Docker` `Podman` `Linux` `Python` `Django` `Bash`
 
 ---
