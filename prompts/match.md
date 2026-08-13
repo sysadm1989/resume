@@ -20,6 +20,7 @@
 
 Правила оценки:
 - score опирается на must-have: Kubernetes/GitOps/CI/cloud/automation из вакансии.
+- Если вакансия требует администрирование / эксплуатацию Kubernetes (кластеры, bootstrap, обновления, control-plane, аддоны, сеть, storage, RBAC) — это must-have кандидата: в резюме это явный hands-on cluster admin, не только GitOps/Helm поверх чужого кластера. Закрывай такие требования в matched с evidence из разделов про администрирование Kubernetes / Deckhouse / ванильный Kubernetes.
 - Не выдумывай опыт, которого нет в резюме.
 - Если вакансия про другое (чистый frontend, 1C и т.п.) — низкий score и честный verdict.
 - Пиши по-русски в текстовых полях.

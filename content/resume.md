@@ -2,7 +2,7 @@
 
 **Tech Lead — DevOps / Platform Engineer** · Kubernetes · GitOps · Helm · CI/CD
 
-Москва, м. Преображенская площадь · на месте / гибрид · редкие командировки  
+Москва · на месте / гибрид · редкие командировки  
 📧 sysadm1989@gmail.com · 📱 +7 (917) 534-44-35 · 💬 Telegram: @alexnazarov89 · [Habr](https://habr.com/ru/users/sysadm1989/) · [LinkedIn](https://ru.linkedin.com/in/aleksey-nazarov-451593113)  
 Гражданство: РФ · опыт: 17+ лет
 
@@ -11,26 +11,25 @@
 ## Профиль
 
 Руководитель направления DevOps и контейнеризации с фокусом на **Kubernetes**, **GitOps**, **CI/CD** и платформенные сервисы.
-Строю и сопровождаю коммунальную инфраструктуру для продуктовых команд: кластеры (**ванильный Kubernetes** и **Deckhouse**), **Keycloak** (identity), **Vault** (секреты), артефакты, автоматизацию и IDP.
+Строю и сопровождаю коммунальную инфраструктуру для продуктовых команд: кластеры (**ванильный Kubernetes** и **Deckhouse**), **Keycloak** (SSO), **Vault** (секреты), **Nexus/Harbor** (артефакты), автоматизацию и **IDP** (git flow, релиз-манифест, self-service для команд).
 Единый **RBAC** по платформенным системам: роли и доступы согласованы между Keycloak, Kubernetes, GitLab, Vault, AWX и смежными сервисами.
 
-Сильные стороны: **внедрение GitOps-платформы под ключ**, наставничество инженеров, единые стандарты delivery, отказоустойчивые архитектуры, IaC и безопасный доступ через merge request.
+Сильные стороны: **внедрение GitOps-платформы под ключ**, наставничество инженеров, единые стандарты CI/CD, отказоустойчивые архитектуры, IaC.
 
 ---
 
 ## Ключевые навыки
 
 ### Kubernetes & Platform
-- **Kubernetes** (ванильный и bare-metal / on-premise): Cilium, Istio, Falco/Kyverno, MetalLB, cert-manager
-- **Deckhouse**: bootstrap и эксплуатация платформенного кластера, ModuleConfig, Project/AppProject, Secrets Store CSI, admission-policy-engine, operator-trivy, SDS/replicated volume
+- **Администрирование Kubernetes** (ванильный, bare-metal / on-premise и **Deckhouse**): bootstrap, обновления control-plane/worker, сеть, storage, RBAC, аддоны (Cilium, Istio, Falco/Kyverno, MetalLB, cert-manager); Deckhouse: multitenancy-manager, Secrets Store CSI, admission-policy-engine, operator-trivy
 - Tenancy и политики: **Capsule**, Kyverno; runtime security
 - **Helm**: платформенные и продуктовые чарты, values по окружениям, canary (Istio VS/DR), **VPA**
 - GitOps: Argo CD (AppProjects, bootstrap Applications)
-- Observability: **OpenTelemetry**, **VictoriaMetrics** (vmagent/vmalert/vmauth), **VictoriaLogs**, Vector, Grafana, Alertmanager
+- Observability: **OpenTelemetry**, **VictoriaMetrics**, **VictoriaLogs**, Vector, Grafana, Alertmanager
 - Networking / TLS: Istio, **MetalLB**, **cert-manager**, ExternalDNS, **PowerDNS**
 - Storage: **Linstor**, Local, S3, **SeaweedFS**
 - Canary deploy: Istio в Kubernetes, nginx+lua на серверах
-- Platform-сервисы для команд: **Keycloak** (SSO/RBAC), **Vault** (коммунальный secrets + CSI в поды), Nexus, AWX, Sentry
+- Platform-сервисы для команд: Keycloak, Vault, Nexus, AWX, Sentry
 - DNS: настройка и администрирование **PowerDNS** (зоны, записи, интеграция с ExternalDNS)
 - Object storage: настройка и администрирование **SeaweedFS** (S3 API, тома, репликация, эксплуатация)
 - Векторная БД: настройка и администрирование **Qdrant** (коллекции, персистентность, бэкапы, доступ)
@@ -39,11 +38,11 @@
 - Опыт написания оператора для Kubernetes
 
 ### CI/CD & Automation
-- GitLab / **GitLab CI Components**: единые шаблоны (prepare → test → **Kaniko** → SCA → deploy Argo CD)
+- GitLab / **GitLab CI Components**: единые шаблоны/компоненты (prepare → test → **Kaniko** → SCA → deploy Argo CD)
 - Сборка образов Kaniko; публикация в Nexus / Yandex Container Registry
 - Ansible / AWX, IaC; **Vault IaC** (KV mounts, policies, FreeIPA/LDAP/OIDC groups из state YAML)
 - HA PostgreSQL: **Patroni** + etcd + PostgreSQL (Ansible)
-- Python / Django (IDP: git flow, релиз-манифест), Bash; интеграция REST API
+- Python / Django (IDP: git flow, релиз-манифест), интеграция REST API
 
 ### Cloud & Infra
 - Yandex Cloud: Container Registry, **Object Storage** (IaC бакетов под сервисы платформы)
@@ -51,7 +50,7 @@
 - Виртуализация и bare-metal
 
 ### Практики
-- Единый **RBAC** и ролевой доступ в сервисы через merge request
+- Единый **RBAC** и ролевой доступ в сервисы через MR
 - Проектирование HA / резервирование
 - Развитие IDP (портал разработчика): git flow, релиз-манифест
 - Наставничество и руководство командой
@@ -64,6 +63,7 @@
 **Март 2025 — н.в.** · Москва
 
 - Внедрение **полной DevOps/GitOps-платформы под ключ**: Kubernetes, CI/CD, IaC, коммунальные сервисы и единые стандарты для продуктовых команд.
+- **Администрирование Kubernetes**: bootstrap и обновление кластеров, control-plane/worker, сеть (Cilium/Istio/MetalLB), storage, RBAC, аддоны; эксплуатация **ванильного Kubernetes** и **Deckhouse**.
 - **Keycloak** как коммунальный сервис identity: SSO, роли и доступ продуктовых команд к платформе и инструментам; **realm как сервис** с LDAP и Kerberos.
 - **Vault** как коммунальный сервис секретов: KV, политики, выдача credentials; интеграция в поды через Deckhouse Secrets Store CSI.
 - **Vault IaC**: декларативный доступ (state YAML) → policies + FreeIPA/LDAP/OIDC groups, без ручной настройки в UI.
@@ -84,13 +84,13 @@
 - Canary deploy (Istio VS/DR, nginx+lua на серверах).
 - Разработка и сопровождение IDP (портал разработчика на Django + Keycloak OIDC): git flow, релиз-манифест для команд.
 - Проектирование отказоустойчивых архитектур с высокой доступностью и резервированием.
-- Администрирование Yandex Cloud: Container Registry, **Object Storage** (бакеты под платёжные сервисы, IaC).
+- Администрирование Yandex Cloud: Container Registry, **Object Storage** (бакеты под сервисы, IaC).
 
 ### Начальник отдела infra devops — АО «НСПК»
 **Январь 2016 — Март 2025** · Москва · [nspk.ru](https://www.nspk.ru)
 
 - Руководство отделом infra devops: планирование, приоритизация, развитие платформы и автоматизации.
-- Развитие и сопровождение **ванильного Kubernetes** on-premise: **Capsule**, **cert-manager**, **Tetragon**, **Kyverno**, **Linstor**; собственные шаблоны управления кластером и коммунальными компонентами.
+- **Администрирование ванильного Kubernetes** on-premise: bootstrap, обновления, **Capsule**, **cert-manager**, **Tetragon**, **Kyverno**, **Linstor**; собственные шаблоны управления кластером и коммунальными компонентами.
 - **Namespace как сервис** для продуктовых команд.
 - Деплой и обновление кластера через **Ansible**.
 - Разработка и сопровождение внутренних систем автоматизации (Python / Django).
@@ -160,5 +160,6 @@
 
 ## Как со мной работать
 
-Предпочитаю GitOps, IaC и ревьюемые изменения через MR.  
-Для оценки вакансии приложите текст, PDF или ссылку — на сайте есть сравнение с профилем кандидата.
+Перед звонком лучше проверить вакансию на сайте: вставьте текст, PDF или ссылку — будет видно насколько я подхожу.
+
+Если совпадение хорошее — пишите в Telegram или звоните, контакты выше.

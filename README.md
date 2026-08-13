@@ -121,6 +121,7 @@ curl -fsS -X POST https://alexnazarov.site/api/match \
 
 ```bash
 cd /opt/resume
+
 ./scripts/update.sh
 ```
 
