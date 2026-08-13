@@ -113,7 +113,7 @@ code, .mono { font-family: var(--mono); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1100px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 1.25rem 1.5rem;
   position: sticky;
@@ -128,7 +128,7 @@ code, .mono { font-family: var(--mono); }
   backdrop-filter: blur(14px) saturate(140%);
   border-bottom-color: var(--line);
   max-width: none;
-  padding-inline: max(1.5rem, calc((100vw - 1100px) / 2 + 1.5rem));
+  padding-inline: max(1.5rem, calc((100vw - 1240px) / 2 + 1.5rem));
 }
 
 .brand {
@@ -192,7 +192,7 @@ code, .mono { font-family: var(--mono); }
 }
 
 .hero {
-  max-width: 1100px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 2rem 1.5rem 1rem;
 }
@@ -714,7 +714,7 @@ code, .mono { font-family: var(--mono); }
 }
 
 .panel {
-  max-width: 1100px;
+  max-width: 1240px;
   margin: 1rem auto 1.5rem;
   padding: 1.4rem 1.5rem 1.7rem;
   background:
@@ -889,7 +889,7 @@ code, .mono { font-family: var(--mono); }
 .lead { color: var(--muted); margin-top: 0; }
 
 .markdown-body {
-  max-width: 46rem;
+  max-width: none;
   font-size: 1.06rem;
   line-height: 1.7;
 }
@@ -1139,7 +1139,7 @@ textarea:focus, input[type="url"]:focus {
 .sev-nice_to_have { color: var(--muted); }
 
 .footer {
-  max-width: 1100px;
+  max-width: 1240px;
   margin: 0 auto 2rem;
   padding: 0 1.5rem;
   display: flex;
