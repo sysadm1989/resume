@@ -87,14 +87,22 @@
 - Администрирование Yandex Cloud: Container Registry, **Object Storage** (бакеты под сервисы, IaC).
 
 ### Начальник отдела infra devops — АО «НСПК»
-**Январь 2016 — Март 2025** · Москва · [nspk.ru](https://www.nspk.ru)
+**Январь 2016 — Март 2025** · Москва · [nspk.ru](https://www.nspk.ru) · [Habr: Kubernetes](https://habr.com/ru/companies/nspk/articles/668578/) · [Habr: lifecycle серверов](https://habr.com/ru/companies/nspk/articles/511062/)
 
-- Руководство отделом infra devops: планирование, приоритизация, развитие платформы и автоматизации.
-- **Администрирование ванильного Kubernetes** on-premise: bootstrap, обновления, **Capsule**, **cert-manager**, **Tetragon**, **Kyverno**, **Linstor**; собственные шаблоны управления кластером и коммунальными компонентами.
-- **Namespace как сервис** для продуктовых команд.
-- Деплой и обновление кластера через **Ansible**.
-- Разработка и сопровождение внутренних систем автоматизации (Python / Django).
-- Коммунальные сервисы для команд: **AWX**, **Vault**, **Nexus**; единая ролевая модель
+- Руководство отделом infra devops / развития инфраструктурных систем автоматизации (Мир Plat.Form): планирование, приоритизация, платформа и автоматизация для продуктовых команд.
+- **Ванильный Kubernetes на bare-metal** (без облака): prod / test / beta-test; миграция CentOS+Docker → Ubuntu+**cri-o**; собственные Ansible-роли установки и обновления (без kubespray).
+- Два независимых **prod-кластера в разных ЦОД** с дублированием namespace и инфраструктуры; active-active сервисы через внешние балансировщики.
+- **On-premises managed Kubernetes** для команд: namespace-as-a-service, возможность подключения своих нод под проект; изоляция через labels / PodNodeSelector.
+- AuthN/AuthZ: **Keycloak** (OIDC auth-proxy) + LDAP-группы → права в кластерах; серверы управления (kubectl/helm/плагины) через Ansible.
+- Собственный **namespace-оператор** (Ansible Operator → **Kopf**/Python): Role/ClusterRole, quotas, LimitRange, NetworkPolicy, labels — конфигурация в Git, применение после MR.
+- GitOps / CD: **Argo CD** для платформенных операторов и общих RBAC-объектов; **AWX** (Ansible Tower) для CD продовых микросервисов.
+- Политики и безопасность: **Kyverno**; **cert-manager** + Trust CA; **Vault** agent injector / vault-secret в поды.
+- Ingress / LB: **MetalLB** + nginx-ingress; observability: kube-prometheus, ServiceMonitor, **VictoriaMetrics** + Grafana (remote_write), Filebeat → ELK (в т.ч. audit); бэкапы **Velero**; PV в test — Trident/nfs-provisioner.
+- Коммунальные сервисы: **AWX**, **Vault**, **Nexus**; единая ролевая модель; сопровождение Capsule, Tetragon, Linstor на поздних этапах платформы.
+- Разработка внутренних продуктов автоматизации на **Python / Django**:
+  - **«Мир серверов»** — CMDB 9000+ серверов: учёт, права по оргструктуре, аналитика ресурсов, REST API для Zabbix/ИБ, синхронизация владельцев из 1С/AD, интеграция с phpIPAM, Jira ServiceDesk, dcTrack.
+  - **DitNet** — полный lifecycle ВМ по сегментам (10+ ЦОД, PCI-DSS): сбор артефактов VMware → заявка Jira → создание ВМ (**pyvmomi**) → Ansible + **Molecule** → оповещения; Celery; сбор фактов Ansible/SNMP, FreeIPA HBAC/sudo и AD-групп.
+- Стандартизация Ansible (идемпотентные роли), унификация артефактов VMware (900+ подсетей); CI приложений через GitLab CI / AWX.
 
 ### Системный администратор — ООО «Внешпромбанк»
 **Сентябрь 2011 — Декабрь 2015** · Москва
@@ -113,19 +121,20 @@
 - Выстроил и ввёл в эксплуатацию **полную платформу DevOps**: Kubernetes, GitOps (Argo CD), **GitLab CI Components** + Kaniko, IaC, **Vault** (+ CSI в поды), **Keycloak/FreeIPA**, IDP — единый контур для продуктовых команд.
 - Внедряю **GitOps под ключ**: bootstrap кластера (**Deckhouse** или ванильный Kubernetes), Argo CD, **Helm**-шаблоны приложений (canary, VPA), политики и изменения через merge request.
 - Эксплуатирую **Qdrant** как векторное хранилище; тестировал **RAG** над корпоративной wiki (чанкинг документации → эмбеддинги → семантический поиск, проверка релевантности ответов с цитированием источников).
-- Опыт разработки на Django и интеграции REST API; написание оператора для Kubernetes.
+- Опыт разработки на Django и интеграции REST API; написание оператора для Kubernetes (**Kopf** / Ansible Operator): namespace-as-code (RBAC, quotas, NetworkPolicy).
+- В НСПК выстроил контур **CMDB + lifecycle ВМ** («Мир серверов», DitNet) и **on-prem Kubernetes-платформу** (multi-DC, OIDC/Keycloak, Argo CD/AWX, Kyverno, Vault) — опыт описан в публикациях на Habr.
 - Формирование и закрепление единого стандарта разработки и CI/CD: onboarding команд на платформу, документация, self-service через IDP (git flow, релиз-манифест).
-- Сильный ops-фундамент: ЦОД и инфраструктура «с нуля», HA (в т.ч. Patroni), мониторинг, безопасность и эксплуатация в защищенных сегментах.
+- Сильный ops-фундамент: ЦОД и инфраструктура «с нуля», HA (в т.ч. Patroni), мониторинг, безопасность и эксплуатация в защищенных сегментах (PCI-DSS).
 
 ---
 
 ## Стек (кратко)
 
-`Kubernetes` `Deckhouse` `Helm` `Istio` `Cilium` `Capsule` `Tetragon` `Argo CD`  
-`GitLab CI` `Kaniko` `OpenTelemetry` `VictoriaMetrics` `VictoriaLogs` `Vector`  
-`Ansible` `AWX` `Vault` `Keycloak` `FreeIPA` `Nexus` `Patroni` `Sentry`  
-`Qdrant` `SeaweedFS` `PowerDNS` `MetalLB` `cert-manager` `Linstor` `External Secrets` `Yandex Cloud`  
-`Docker` `Podman` `Linux` `Python` `Django` `Bash`
+`Kubernetes` `Deckhouse` `Helm` `Istio` `Cilium` `Capsule` `Tetragon` `cri-o` `Argo CD`  
+`GitLab CI` `Kaniko` `OpenTelemetry` `VictoriaMetrics` `VictoriaLogs` `Vector` `ELK`  
+`Ansible` `AWX` `Molecule` `Vault` `Keycloak` `FreeIPA` `Nexus` `Patroni` `Sentry`  
+`Qdrant` `SeaweedFS` `PowerDNS` `MetalLB` `cert-manager` `Linstor` `Kyverno` `Velero` `External Secrets` `Yandex Cloud`  
+`Docker` `Podman` `VMware` `Linux` `Python` `Django` `Kopf` `Bash`
 
 ---
 
